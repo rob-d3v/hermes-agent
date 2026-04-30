@@ -44,7 +44,8 @@
       "Bash(python3 -c \"import sys,json; [print\\(m[''''name'''']\\) for m in json.load\\(sys.stdin\\)[''''models'''']]\")",
       "Bash(python hermes_configure.py show)",
       "Bash(python -c \"import ast; ast.parse\\(open\\(''app.py''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")",
-      "Bash(python -c \"import ast; ast.parse\\(open\\(''app.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")"
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''app.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''app.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''OK''\\)\")"
     ]
   }
 }

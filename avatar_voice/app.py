@@ -14,6 +14,12 @@ import time
 from pathlib import Path
 from tkinter import filedialog
 
+try:
+    import winreg as _winreg
+    _WIN = True
+except ImportError:
+    _WIN = False
+
 import customtkinter as ctk
 import requests
 import yaml
@@ -203,9 +209,21 @@ class App(ctk.CTk):
 
         # Audio Devices
         s5 = self._card(scroll, "AUDIO")
-        devs = self._audio_devices()
-        self._mic_cb = self._combo(self._hrow(s5, label="Mic"),    ["Default"] + devs)
-        self._out_cb = self._combo(self._hrow(s5, label="Output"), ["Default"] + devs)
+        self._audio_devs = self._audio_devices()
+        self._mic_cb = self._combo(self._hrow(s5, label="Mic"),    ["Default"] + self._audio_devs)
+        self._out_cb = self._combo(self._hrow(s5, label="Output"), ["Default"] + self._audio_devs)
+
+        # Sistema
+        s6 = self._card(scroll, "SISTEMA")
+        self._startup_var = ctk.BooleanVar(value=self._startup_enabled())
+        ctk.CTkCheckBox(
+            s6, text="Iniciar com o Windows", variable=self._startup_var,
+            font=("Courier New", 10), text_color=SUBTEXT,
+            checkbox_width=16, checkbox_height=16,
+            fg_color=BLUE, border_color=MUTED, checkmark_color="#1e1e2e",
+            command=self._apply_startup,
+            state="normal" if _WIN else "disabled",
+        ).pack(anchor="w", pady=(2, 4))
 
     # ── Monitor tab ───────────────────────────────────────────────────────────
     def _build_monitor(self, parent):
@@ -355,6 +373,10 @@ class App(ctk.CTk):
         self._thresh_sl.set(thr); self._thresh_lbl.configure(text=f"{thr:.2f}")
         self._kb_var.set(ww.get("fallback_mode") == "keyboard")
 
+        audio = cfg.get("audio", {})
+        self._restore_device(self._mic_cb, audio.get("input_device"))
+        self._restore_device(self._out_cb, audio.get("output_device"))
+
     def _save_from_ui(self):
         cfg = self._cfg
         for sec in ("agent","stt","tts","wake_word","audio"):
@@ -384,9 +406,18 @@ class App(ctk.CTk):
             "fallback_mode": "keyboard" if self._kb_var.get() else None,
         })
 
+        mic = self._mic_cb.get()
+        out = self._out_cb.get()
+        cfg["audio"].update({
+            "input_device":  None if mic == "Default" else mic,
+            "output_device": None if out == "Default" else out,
+        })
+
         self._write_config(cfg)
         self._cfg = cfg
-        self._log_line("Config salvo.", color=GREEN)
+        self._log_line("Config salvo.")
+        self._save_btn.configure(text="Salvo ✓", fg_color="#2d5a27", text_color=GREEN)
+        self.after(1500, lambda: self._save_btn.configure(text="Save", fg_color=OVERLAY, text_color=TEXT))
 
     def _on_provider(self, value: str):
         model, key, url = PROVIDER_PRESETS.get(value, ("","",""))
@@ -521,6 +552,45 @@ class App(ctk.CTk):
         self._chat.insert("end", text + "\n\n")
         self._chat.see("end")
         self._chat.configure(state="disabled")
+
+    def _restore_device(self, combo: ctk.CTkComboBox, saved):
+        if not saved:
+            combo.set("Default")
+            return
+        all_vals = ["Default"] + self._audio_devs
+        combo.set(saved if saved in all_vals else "Default")
+
+    @staticmethod
+    def _startup_enabled() -> bool:
+        if not _WIN:
+            return False
+        try:
+            with _winreg.OpenKey(_winreg.HKEY_CURRENT_USER,
+                                 r"Software\Microsoft\Windows\CurrentVersion\Run") as k:
+                _winreg.QueryValueEx(k, "avatar_voice")
+                return True
+        except OSError:
+            return False
+
+    def _apply_startup(self):
+        if not _WIN:
+            return
+        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        pythonw  = Path(sys.executable).parent / "pythonw.exe"
+        app_path = Path(__file__).resolve()
+        try:
+            with _winreg.OpenKey(_winreg.HKEY_CURRENT_USER, key_path, 0,
+                                 _winreg.KEY_SET_VALUE) as k:
+                if self._startup_var.get():
+                    _winreg.SetValueEx(k, "avatar_voice", 0, _winreg.REG_SZ,
+                                       f'"{pythonw}" "{app_path}"')
+                else:
+                    try:
+                        _winreg.DeleteValue(k, "avatar_voice")
+                    except OSError:
+                        pass
+        except OSError as e:
+            self._log_line(f"[startup] erro no registro: {e}")
 
     def _on_close(self):
         if self._running:

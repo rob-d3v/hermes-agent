@@ -1,46 +1,38 @@
-# === Hermes Voice Pipeline — Configuração ===
-# Copie este arquivo para config.yaml e ajuste conforme necessário.
-
 agent:
-  base_url: "http://localhost:11434/v1"   # Ollama local
-  model: "mascote"                         # modelo criado com: ollama create mascote -f Modelfile
-  api_key: "ollama"                        # qualquer string para Ollama local
+  base_url: http://localhost:11434/v1
+  model: mascote
+  api_key: ollama
   temperature: 0.9
   max_tokens: 150
-  history_turns: 6                         # número de turns de conversa mantidos
-  history_reset_minutes: 10               # reseta histórico após X min dormindo (0 = nunca)
-
+  history_turns: 6
+  history_reset_minutes: 10
 wake_word:
-  model_path: "../wake_word_models/central.onnx"  # trocar para avatar.onnx quando treinado
+  model_path: E:/backup_2026/Repositórios/hermes-agent/wake_word_models/morphi.onnx
   threshold: 0.5
   cooldown_seconds: 2.0
   vad_rms_min: 50
-#  fallback_mode: "keyboard"  # descomente para testar sem modelo
-
+  fallback_mode: null
 tts:
-  piper_binary: "piper"                    # ou caminho absoluto (ex: C:/piper/piper.exe)
-  model_path: "../piper_models/nanda_ptbr.onnx"
-  length_scale: 0.95                       # velocidade (menor = mais rápido)
-  noise_scale: 0.667                       # variação de prosódia
-  noise_w: 0.8                             # variação de duração de fonemas
-  pitch_semitones: 0                       # ajuste de pitch em semitons (requer sox)
-  volume: 1.0                              # multiplicador de volume (0.0 a 1.0+)
-  chunk_max_chars: 80                      # tamanho máximo de chunk de resposta
-
+  piper_binary: piper
+  model_path: ../piper_models/nanda_ptbr.onnx
+  length_scale: 0.85
+  noise_scale: 0.667
+  noise_w: 0.8
+  pitch_semitones: 3
+  volume: 1.0
+  chunk_max_chars: 80
 stt:
-  model: "small"                            # tiny | base | small | medium | large-v3
-  language: "pt"                           # código de idioma para transcrição
-  device: "auto"                           # cpu | cuda | auto
-  silence_threshold_rms: 200              # RMS abaixo deste = silêncio (0-32767)
-  silence_duration_seconds: 1.5          # segundos de silêncio para parar gravação
-  followup_timeout_seconds: 5.0          # timeout para follow-up / ouvindo inicial
-  max_session_seconds: 20.0              # duração máxima de uma sessão de escuta
-
+  model: small
+  language: pt
+  device: cuda
+  silence_threshold_rms: 200
+  silence_duration_seconds: 1.5
+  followup_timeout_seconds: 5.0
+  max_session_seconds: 20.0
 audio:
-  input_device: null                       # null = dispositivo padrão do sistema
-  output_device: null                      # null = dispositivo padrão do sistema
-  sample_rate: 16000                       # taxa de amostragem para STT (não alterar)
-
+  input_device: null
+  output_device: null
+  sample_rate: 16000
 logging:
-  level: "INFO"                            # DEBUG | INFO | WARNING
-  show_scores: false                       # exibe score da wake word no log (DEBUG)
+  level: INFO
+  show_scores: false
