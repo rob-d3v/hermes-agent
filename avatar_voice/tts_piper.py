@@ -191,6 +191,8 @@ class PiperTTS:
             if self.pitch_semitones != 0 and shutil.which("sox"):
                 piper_proc, audio_source = self._add_sox_pipe(piper_proc)
             else:
+                if self.pitch_semitones != 0 and not shutil.which("sox"):
+                    logger.debug("sox not found — pitch will use numpy fallback")
                 audio_source = piper_proc
 
             # Send text to piper
@@ -209,6 +211,10 @@ class PiperTTS:
                 return False
 
             audio_np = np.frombuffer(raw_audio, dtype=np.int16)
+
+            # Numpy pitch shift when sox not available
+            if self.pitch_semitones != 0 and not shutil.which("sox"):
+                audio_np = self._pitch_shift_numpy(audio_np, self.pitch_semitones)
 
             # Apply volume
             if self.volume != 1.0:
@@ -256,6 +262,19 @@ class PiperTTS:
         )
         piper_proc.stdout.close()
         return piper_proc, sox_proc
+
+    @staticmethod
+    def _pitch_shift_numpy(audio: "np.ndarray", semitones: float) -> "np.ndarray":
+        """Pitch shift via resampling. No sox needed; slight duration change."""
+        try:
+            import numpy as np
+            from scipy.signal import resample
+            ratio = 2.0 ** (semitones / 12.0)
+            new_len = max(1, int(len(audio) / ratio))
+            shifted = resample(audio.astype(np.float32), new_len)
+            return np.clip(shifted, -32768, 32767).astype(np.int16)
+        except Exception:
+            return audio
 
     def _speak_via_wav(self, text: str, piper_cmd: List[str]) -> None:
         """Fallback: generate WAV file and play it."""

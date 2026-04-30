@@ -174,7 +174,7 @@ class WakeWordDetector:
                 if self.show_scores:
                     for model_name, preds in scores.items():
                         if preds:
-                            logger.debug("Score [%s]: %.3f", model_name, preds[-1])
+                            logger.info("WW [%s]: %.3f", model_name, preds[-1])
 
                 # Check threshold
                 now = time.monotonic()

@@ -8,9 +8,9 @@ agent:
   history_reset_minutes: 10
 wake_word:
   model_path: E:/backup_2026/Repositórios/hermes-agent/wake_word_models/morphi.onnx
-  threshold: 0.5
+  threshold: 0.35
   cooldown_seconds: 2.0
-  vad_rms_min: 50
+  vad_rms_min: 30
   fallback_mode: null
 tts:
   piper_binary: piper
@@ -30,9 +30,9 @@ stt:
   followup_timeout_seconds: 5.0
   max_session_seconds: 20.0
 audio:
-  input_device: null
+  input_device: 1
   output_device: null
   sample_rate: 16000
 logging:
   level: INFO
-  show_scores: false
+  show_scores: true

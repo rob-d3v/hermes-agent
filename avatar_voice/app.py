@@ -112,12 +112,15 @@ class App(ctk.CTk):
         hdr = ctk.CTkFrame(self, fg_color="#11111b", corner_radius=0, height=48)
         hdr.pack(fill="x")
         hdr.pack_propagate(False)
-        ctk.CTkLabel(hdr, text="morph_voice",
+        ctk.CTkLabel(hdr, text="avatar_voice",
                      font=("Courier New", 14, "bold"), text_color=BLUE
                      ).pack(side="left", padx=18, pady=10)
         self._badge = ctk.CTkLabel(hdr, text="○  STOPPED",
                                    font=("Courier New", 11), text_color=MUTED)
         self._badge.pack(side="right", padx=18)
+        self._prov_lbl = ctk.CTkLabel(hdr, text="",
+                                      font=("Courier New", 10), text_color=SUBTEXT)
+        self._prov_lbl.pack(side="right", padx=(0, 6))
 
         # ── Tabs
         self._tabs = ctk.CTkTabview(
@@ -417,8 +420,9 @@ class App(ctk.CTk):
         audio = cfg.get("audio", {})
         self._restore_device(self._mic_cb, audio.get("input_device"))
         self._restore_device(self._out_cb, audio.get("output_device"))
+        self._update_prov_label()
 
-    def _save_from_ui(self):
+    def _do_save(self):
         cfg = self._cfg
         for sec in ("agent","stt","tts","wake_word","audio"):
             cfg.setdefault(sec, {})
@@ -447,15 +451,26 @@ class App(ctk.CTk):
             "fallback_mode": "keyboard" if self._kb_var.get() else None,
         })
 
-        mic = self._mic_cb.get()
-        out = self._out_cb.get()
+        def _dev_index(val: str):
+            if val == "Default":
+                return None
+            try:
+                return int(val.split(":")[0])
+            except (ValueError, IndexError):
+                return None
+
         cfg["audio"].update({
-            "input_device":  None if mic == "Default" else mic,
-            "output_device": None if out == "Default" else out,
+            "input_device":  _dev_index(self._mic_cb.get()),
+            "output_device": _dev_index(self._out_cb.get()),
         })
 
         self._write_config(cfg)
         self._cfg = cfg
+        self._update_prov_label()
+
+    def _save_from_ui(self):
+        """Salva e dá feedback visual (botão Save manual)."""
+        self._do_save()
         self._log_line("Config salvo.")
         self._save_btn.configure(text="Salvo ✓", fg_color="#2d5a27", text_color=GREEN)
         self.after(1500, lambda: self._save_btn.configure(text="Save", fg_color=OVERLAY, text_color=TEXT))
@@ -468,6 +483,12 @@ class App(ctk.CTk):
             self._set_entry(self._apikey_e, key)
         else:
             self._apikey_e.delete(0, "end")
+        self._update_prov_label(value, model)
+
+    def _update_prov_label(self, provider: str = "", model: str = ""):
+        provider = provider or self._prov_var.get()
+        model    = model    or self._model_e.get().strip()
+        self._prov_lbl.configure(text=f"[{provider}  {model}]")
 
     @staticmethod
     def _set_entry(e: ctk.CTkEntry, val: str):
@@ -479,7 +500,7 @@ class App(ctk.CTk):
         if self._running:
             self._stop()
         else:
-            self._save_from_ui()
+            self._do_save()
             self._start()
 
     def _start(self):
@@ -500,7 +521,7 @@ class App(ctk.CTk):
         try:
             self._proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, bufsize=1,
+                text=True, encoding="utf-8", errors="replace", bufsize=1,
                 cwd=str(_app_dir()),
                 env={**os.environ, "PYTHONIOENCODING": "utf-8"},
             )
@@ -661,11 +682,13 @@ class App(ctk.CTk):
                 pass
 
     def _restore_device(self, combo: ctk.CTkComboBox, saved):
-        if not saved:
+        if saved is None:
             combo.set("Default")
             return
-        all_vals = ["Default"] + self._audio_devs
-        combo.set(saved if saved in all_vals else "Default")
+        # saved é índice inteiro — acha a string correspondente "N: Nome"
+        prefix = f"{saved}:"
+        match = next((d for d in self._audio_devs if d.startswith(prefix)), None)
+        combo.set(match if match else "Default")
 
     @staticmethod
     def _startup_enabled() -> bool:
