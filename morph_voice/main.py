@@ -96,6 +96,7 @@ def _build_components(cfg: Config, input_device: Optional[int]):
         max_tokens=cfg.agent.max_tokens,
         history_turns=cfg.agent.history_turns,
         history_reset_minutes=cfg.agent.history_reset_minutes,
+        timeout=cfg.agent.timeout,
     )
 
     return wake, tts, stt, agent
@@ -269,14 +270,20 @@ def main() -> None:
     )
     parser.add_argument(
         "--provider", "-p",
-        choices=["ollama", "hermes", "openrouter"],
+        choices=["ollama", "openai", "hermes", "openrouter"],
         default=None,
         help=(
-            "Sobrescreve o provider do agente: "
+            "Provider do agente: "
             "ollama (local, padrão), "
-            "hermes (localhost:8642), "
+            "openai (direto, requer OPENAI_API_KEY), "
+            "hermes (localhost:8642, requer Hermes rodando), "
             "openrouter (requer OPENROUTER_API_KEY)"
         ),
+    )
+    parser.add_argument(
+        "--model", "-m",
+        default=None,
+        help="Sobrescreve o modelo (ex: gpt-4o-mini, gpt-4o, llama3.2)",
     )
     parser.add_argument(
         "--port",
@@ -303,13 +310,30 @@ def main() -> None:
         cfg.agent.base_url = "http://localhost:11434/v1"
         cfg.agent.api_key = "ollama"
         cfg.agent.model = "mascote"
+        cfg.agent.timeout = 240
+    elif args.provider == "openai":
+        cfg.agent.base_url = "https://api.openai.com/v1"
+        cfg.agent.api_key = os.environ.get("OPENAI_API_KEY", "")
+        cfg.agent.model = "gpt-4o-mini"
+        cfg.agent.timeout = 30
+        if not cfg.agent.api_key:
+            print("ERRO: OPENAI_API_KEY não definida. Configure com:")
+            print("  set OPENAI_API_KEY=sk-...   (Windows)")
+            print("  export OPENAI_API_KEY=sk-... (Linux/macOS)")
+            return
     elif args.provider == "hermes":
         cfg.agent.base_url = "http://localhost:8642/v1"
         cfg.agent.api_key = os.environ.get("HERMES_API_KEY", "aa6531e6c0db6b2fba53bb133fac2e0a")
         cfg.agent.model = "hermes-agent"
+        cfg.agent.timeout = 60
     elif args.provider == "openrouter":
         cfg.agent.base_url = "https://openrouter.ai/api/v1"
         cfg.agent.api_key = os.environ.get("OPENROUTER_API_KEY", "")
+        cfg.agent.timeout = 30
+
+    # Sobrescrever modelo se passado explicitamente
+    if args.model:
+        cfg.agent.model = args.model
 
     # Iniciar dashboard web
     if not args.no_dashboard:

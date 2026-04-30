@@ -9,6 +9,7 @@ agent:
   max_tokens: 150
   history_turns: 6                         # número de turns de conversa mantidos
   history_reset_minutes: 10               # reseta histórico após X min dormindo (0 = nunca)
+  timeout: 240                             # segundos — 240 para Ollama cold start, 30 para OpenAI/cloud
 
 wake_word:
   model_path: "../wake_word_models/central.onnx"  # trocar para morph.onnx quando treinado

@@ -1,49 +1,41 @@
-# morph_voice 🎙️
+# morph_voice
 
-> Pipeline de voz 100% local: **Wake Word → TTS greeting → Whisper STT → Ollama → TTS response**
-> Funciona offline, sem cloud, sem assinaturas.
+Pipeline de voz local: **Wake Word → TTS → Whisper STT → LLM → TTS**
 
 ```
-┌──────────────┐    ┌──────────┐    ┌─────────┐    ┌─────────────┐    ┌──────────┐
-│  Wake Word   │───▶│ Greeting │───▶│ Whisper │───▶│   Ollama    │───▶│  Piper   │
-│ OpenWakeWord │    │  Piper   │    │  (STT)  │    │   (LLM)     │    │  (TTS)   │
-└──────────────┘    └──────────┘    └─────────┘    └─────────────┘    └──────────┘
-       ▲                                                                      │
-       └──────────────────── loop (follow-up ou dormir) ◀────────────────────┘
+┌──────────────┐   ┌──────────┐   ┌─────────┐   ┌────────────┐   ┌──────────┐
+│  Wake Word   │──▶│ Greeting │──▶│ Whisper │──▶│    LLM     │──▶│  Piper   │
+│ OpenWakeWord │   │  Piper   │   │  (STT)  │   │ (sua escolha)│  │  (TTS)   │
+└──────────────┘   └──────────┘   └─────────┘   └────────────┘   └──────────┘
+       ▲                                                                 │
+       └─────────────── loop (follow-up ou dormir) ◀───────────────────┘
 ```
+
+Funciona **100% offline** com Ollama, ou conectado a qualquer API OpenAI-compatible.
 
 ---
 
-## O que é
+## Modos de uso
 
-`morph_voice` é uma camada de voz local que conecta quatro componentes open-source:
-
-| Componente | Tecnologia | Descrição |
-|---|---|---|
-| Wake Word | [OpenWakeWord](https://github.com/dscripka/openWakeWord) | Detecta a palavra de ativação via modelo ONNX |
-| STT | [faster-whisper](https://github.com/guillaumekln/faster-whisper) | Transcrição em pt-BR local, sem internet |
-| LLM | [Ollama](https://ollama.com) | Qualquer modelo local (ou API OpenAI-compatible) |
-| TTS | [Piper](https://github.com/rhasspy/piper) | Voz sintética pt-BR, baixa latência, offline |
-
-Inclui **dashboard web em tempo real** para monitorar e interagir via browser.
+| Modo | LLM | Requer | Ideal para |
+|---|---|---|---|
+| `--provider ollama` | Ollama local | Ollama instalado | Uso offline, privacidade |
+| `--provider hermes` | Qualquer (via Hermes) | Docker + Hermes | Dashboard, histórico, múltiplos providers |
+| `--provider openai` | OpenAI direto | `OPENAI_API_KEY` | Resposta rápida sem Hermes |
+| `--provider openrouter` | OpenRouter | `OPENROUTER_API_KEY` | Acesso a múltiplos modelos |
 
 ---
 
-## Requisitos mínimos
+## Instalação
 
-- Python **3.10+**
-- Ollama instalado e rodando
-- ~2 GB livre em disco (modelos Whisper + Ollama)
+### Pré-requisitos
+
+- Python 3.10+
 - Microfone e caixas de som
-
----
-
-## Instalação em 3 passos
 
 ### Linux / macOS
 
 ```bash
-git clone <este-repo>
 cd morph_voice
 bash install.sh
 ```
@@ -51,240 +43,272 @@ bash install.sh
 ### Windows
 
 ```powershell
-# Abra o PowerShell como usuário normal (não precisa de admin)
 cd morph_voice
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser   # apenas 1x
+# Apenas na 1ª vez:
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 .\install.ps1
 ```
 
-O script faz tudo automaticamente:
-- Instala dependências Python
-- Baixa e instala o Piper TTS
-- Baixa os modelos do OpenWakeWord
-- Cria o `config.yaml` pronto para uso
-- Verifica se o Ollama está instalado
+O script instala automaticamente: dependências Python, Piper TTS, modelos OpenWakeWord e cria o `config.yaml`.
 
 ---
 
-## Configuração
+## Modo 1 — Ollama local (offline, grátis)
 
-Edite o arquivo `config.yaml` (criado automaticamente pelo install):
+### Passo 1 — Instale o Ollama
 
-### 1. Escolha o modelo Ollama
+Baixe em **https://ollama.com** e instale normalmente.
+
+Verifique:
+```bash
+ollama --version
+```
+
+### Passo 2 — Baixe um modelo
+
+```bash
+# Leve e rápido (recomendado para começar):
+ollama pull gemma2:2b
+
+# Opcional: criar a personalidade "mascote" (pt-BR, sotaque goiano):
+ollama create mascote -f ../mascote.mf
+```
+
+> Sem o `mascote`, use qualquer modelo em `config.yaml` → `agent.model`.
+
+### Passo 3 — Configure
+
+Edite `config.yaml`:
 
 ```yaml
 agent:
   base_url: "http://localhost:11434/v1"
-  model: "mascote"          # qualquer modelo do: ollama list
-  api_key: "ollama"         # pode ser qualquer string para Ollama local
+  model: "mascote"    # ou gemma2:2b, llama3.2, phi3...
+  api_key: "ollama"
+  timeout: 240        # aumente se o modelo demorar para carregar
 ```
 
-Para criar o modelo `mascote` (personalidade pt-BR com sotaque goiano):
-```bash
-ollama create mascote -f ../mascote.mf
-```
-
-Ou use qualquer modelo já instalado:
-```bash
-ollama list              # veja os modelos disponíveis
-# phi3, llama3.2, gemma2:2b, qwen2.5...
-```
-
-### 2. Wake Word
-
-```yaml
-wake_word:
-  model_path: "../wake_word_models/central.onnx"   # seu modelo customizado
-  threshold: 0.5
-  # fallback_mode: "keyboard"   # descomente para testar sem modelo
-```
-
-> **Sem modelo ainda?** Descomente `fallback_mode: keyboard` e pressione Enter para ativar.
-
-### 3. Voz (TTS Piper)
-
-```yaml
-tts:
-  model_path: "../piper_models/nanda_ptbr.onnx"   # modelo de voz
-  length_scale: 0.95     # velocidade: 0.8 = mais rápido, 1.2 = mais lento
-  pitch_semitones: 0     # tom: +2 = mais agudo, -2 = mais grave (requer sox)
-  volume: 1.0
-```
-
-> Outros modelos Piper pt-BR: [Hugging Face — rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/main/pt/pt_BR)
-
-### 4. Reconhecimento de voz (Whisper)
-
-```yaml
-stt:
-  model: "small"       # tiny (rápido) | base | small (recomendado) | medium | large-v3
-  language: "pt"
-  device: "auto"       # auto = usa GPU se disponível
-```
-
----
-
-## Rodando
+### Passo 4 — Rode
 
 ```bash
-cd morph_voice
-
-# Ver dispositivos de áudio disponíveis
+# Listar dispositivos de áudio (para saber o índice do mic)
 python main.py --list-devices
 
-# Iniciar (com dashboard em localhost:3005)
+# Iniciar
 python main.py
 
-# Especificar microfone pelo índice
-python main.py --device 2
-
-# Porta diferente para o dashboard
-python main.py --port 8080
-
-# Sem dashboard
-python main.py --no-dashboard
+# Ou explícito:
+python main.py --provider ollama
 ```
 
 Acesse o dashboard: **http://localhost:3005**
 
 ---
 
-## Dashboard Web
+## Modo 2 — Hermes Agent (dashboard + qualquer LLM)
 
-Abra `http://localhost:3005` no browser enquanto o pipeline roda:
+O Hermes roda em Docker e age como um "hub" entre o morph_voice e o LLM da sua escolha.
+Todas as conversas aparecem no dashboard do Hermes em **http://localhost:9119**.
 
-```
-┌────────────────────────────────────────────────┐
-│  morph_voice          ● LISTENING              │
-├────────────────────────────────────────────────┤
-│  [SLEEPING]                          13:42:01  │
-│  [GREETING]                          13:42:02  │
-│  você disse   como funciona isso aqui?         │
-│  morph        Uai, mô do céu! É simples...     │
-│  [SLEEPING]                          13:42:15  │
-├────────────────────────────────────────────────┤
-│  [ Digite para injetar mensagem... ] [Enviar]  │
-└────────────────────────────────────────────────┘
+### Passo 1 — Instale o Docker Desktop
+
+Baixe em **https://www.docker.com/products/docker-desktop** e inicie.
+
+Verifique:
+```bash
+docker --version
 ```
 
-- **Estados em tempo real** com badge colorido
-- **Histórico da conversa** — o que você falou e o que a IA respondeu
-- **Injetar mensagem** — manda texto direto sem precisar falar (bypassa wake word)
-
----
-
-## Fluxo de estados
-
-```
-SLEEPING ──(wake word detectada)──▶ GREETING
-                                        │
-                                        ▼
-                                    LISTENING ──(silêncio)──▶ SLEEPING
-                                        │ (fala detectada)
-                                        ▼
-                                    WAITING (toca frase de espera)
-                                        │
-                                     PROCESSING (chama Ollama)
-                                        │
-                                        ▼
-                                    RESPONDING (Piper fala a resposta)
-                                        │
-                                        ▼
-                                    FOLLOWUP ──(silêncio 5s)──▶ SLEEPING
-                                        │ (nova fala)
-                                        └──────────▶ WAITING (loop)
-```
-
----
-
-## Trocar de provider (LLM)
-
-Use a flag `--provider` para trocar rapidamente:
+### Passo 2 — Suba o Hermes
 
 ```bash
-# Ollama local (padrão)
-python main.py --provider ollama
+# Na raiz do repositório (hermes-agent/):
+docker compose up -d
+```
 
-# OpenRouter (quando tiver API key)
-set OPENROUTER_API_KEY=sk-or-...      # Windows
-export OPENROUTER_API_KEY=sk-or-...   # Linux/macOS
-python main.py --provider openrouter
+Aguarde os containers subirem:
+```bash
+docker compose ps
+# hermes             running
+# hermes-dashboard   running
+```
 
-# Hermes Agent (self-hosted)
+### Passo 3 — Configure o LLM dentro do container
+
+Com o container rodando, abra o wizard interativo do Hermes:
+
+```bash
+docker exec -it hermes hermes model
+```
+
+Vai aparecer um menu assim:
+```
+  Select inference provider
+  ─────────────────────────
+  ▶ OpenRouter         (OPENROUTER_API_KEY)
+    OpenAI             (OPENAI_API_KEY)
+    Anthropic          (ANTHROPIC_API_KEY)
+    Ollama local       (custom endpoint)
+    LM Studio          (custom endpoint)
+    ...
+```
+
+Escolha o provider, insira a API key quando pedido, selecione o modelo e confirme.
+A configuração é salva automaticamente em `~/.hermes/config.yaml`.
+
+> **Dica:** Para o wizard completo (plataformas, memória, ferramentas):
+> ```bash
+> docker exec -it hermes hermes setup
+> ```
+
+### Passo 4 — Reinicie o gateway
+
+Após configurar, reinicie para aplicar:
+
+```bash
+docker compose restart gateway
+```
+
+### Passo 5 — Verifique a API
+
+```bash
+curl http://localhost:8642/v1/models \
+  -H "Authorization: Bearer aa6531e6c0db6b2fba53bb133fac2e0a"
+# Deve retornar: {"object":"list","data":[{"id":"hermes-agent"...}]}
+```
+
+### Passo 6 — Rode o pipeline
+
+```bash
 python main.py --provider hermes
 ```
 
-Ou edite diretamente o `config.yaml` para qualquer API OpenAI-compatible:
+Acesse:
+- Dashboard morph_voice: **http://localhost:3005**
+- Dashboard Hermes: **http://localhost:9119**
 
-```yaml
-# LM Studio
-agent:
-  base_url: "http://localhost:1234/v1"
-  model: "local-model"
-  api_key: "lm-studio"
+### Parar o Hermes
 
-# OpenAI
-agent:
-  base_url: "https://api.openai.com/v1"
-  model: "gpt-4o-mini"
-  api_key: "sk-..."
-
-# Groq (ultra-rápido, requer conta free)
-agent:
-  base_url: "https://api.groq.com/openai/v1"
-  model: "llama-3.1-8b-instant"
-  api_key: "gsk_..."
+```bash
+docker compose down
 ```
 
 ---
 
-## Personalizar a voz e personalidade
+## Modo 3 — OpenAI direto (sem Hermes)
 
-### Criar seu próprio modelo Ollama
+Mais simples que o Hermes, sem dashboard de conversas.
 
-Edite o arquivo `../mascote.mf` (Modelfile do Ollama):
-
-```
-FROM gemma2:2b
-PARAMETER temperature 0.9
-SYSTEM """
-Aqui você define a personalidade do assistente.
-Exemplos: tom formal, casual, engraçado, técnico...
-Mantenha as respostas curtas (2-3 frases) para o TTS não demorar.
-"""
-```
-
-Depois:
 ```bash
-ollama create meu-assistente -f ../mascote.mf
-# Atualize agent.model no config.yaml
+# Windows
+set OPENAI_API_KEY=sk-...
+python main.py --provider openai
+
+# Linux/macOS
+export OPENAI_API_KEY=sk-...
+python main.py --provider openai
+
+# Trocar modelo:
+python main.py --provider openai --model gpt-4o
 ```
 
-### Trocar a voz do Piper
+---
 
-1. Baixe um modelo em [Hugging Face — rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/main/pt/pt_BR)
-2. Coloque o `.onnx` e o `.onnx.json` em `../piper_models/`
-3. Atualize `tts.model_path` no `config.yaml`
+## Trocar de provider rapidamente
 
-### Ajustar velocidade e tom
+A flag `--provider` aplica presets automáticos — não precisa editar o `config.yaml`:
+
+```bash
+python main.py --provider ollama       # Ollama local (padrão)
+python main.py --provider openai       # OpenAI direto
+python main.py --provider hermes       # Hermes Agent
+python main.py --provider openrouter   # OpenRouter
+```
+
+Trocar modelo sem mudar o provider:
+```bash
+python main.py --provider ollama --model llama3.2
+python main.py --provider openai --model gpt-4o
+```
+
+---
+
+## Referência de configuração
+
+### `config.yaml`
 
 ```yaml
+agent:
+  base_url: "http://localhost:11434/v1"  # URL da API
+  model: "mascote"                        # nome do modelo
+  api_key: "ollama"                       # API key (qualquer string para Ollama)
+  temperature: 0.9                        # criatividade (0.0 a 1.0)
+  max_tokens: 150                         # tamanho máximo da resposta
+  history_turns: 6                        # turns de conversa mantidos
+  history_reset_minutes: 10              # reseta histórico após X min dormindo
+  timeout: 240                            # segundos (240 Ollama, 30 OpenAI)
+
+wake_word:
+  model_path: "../wake_word_models/central.onnx"
+  threshold: 0.5                          # 0.0 a 1.0 (maior = menos falsos positivos)
+  # fallback_mode: "keyboard"            # descomente para testar sem modelo (pressione Enter)
+
 tts:
-  length_scale: 0.85    # 20% mais rápido
-  pitch_semitones: 2    # 2 semitons mais agudo (requer sox instalado)
+  model_path: "../piper_models/nanda_ptbr.onnx"
+  length_scale: 0.95                     # velocidade: 0.8 = rápido, 1.2 = lento
+  pitch_semitones: 0                     # tom: +2 agudo, -2 grave (requer sox)
+  volume: 1.0
+
+stt:
+  model: "small"                          # tiny | base | small | medium | large-v3
+  language: "pt"
+  device: "auto"                          # auto | cpu | cuda
+  followup_timeout_seconds: 5.0          # segundos de silêncio para dormir
 ```
+
+### Flags da linha de comando
+
+```bash
+python main.py --help
+
+  --provider, -p    ollama | openai | hermes | openrouter
+  --model, -m       sobrescreve o modelo (ex: gpt-4o-mini)
+  --device, -d      índice do microfone (ver --list-devices)
+  --port            porta do dashboard web (padrão: 3005)
+  --no-dashboard    desabilita o dashboard web
+  --config, -c      caminho para config.yaml alternativo
+  --list-devices    lista dispositivos de áudio e sai
+```
+
+---
+
+## Dashboard web
+
+Disponível em **http://localhost:3005** enquanto o pipeline roda.
+
+- Estado atual do pipeline em tempo real (SLEEPING, LISTENING, PROCESSING...)
+- Histórico da conversa (transcrições + respostas)
+- Campo de texto para injetar mensagens sem precisar falar (bypassa wake word)
 
 ---
 
 ## Troubleshooting
 
+**Wake word não detecta / detecta errado**
+```yaml
+# Aumente o threshold ou use modo teclado para testar:
+wake_word:
+  threshold: 0.7
+  fallback_mode: "keyboard"   # pressione Enter para ativar
+```
+
 **Piper não encontrado**
 ```bash
-# Teste se está no PATH:
+# Verifique se está no PATH:
 piper --version        # Linux/macOS
 piper.exe --version    # Windows
 
-# Ou especifique o caminho completo no config.yaml:
+# Ou especifique o caminho no config.yaml:
 tts:
   piper_binary: "C:/Users/seu-usuario/AppData/Local/piper/piper/piper.exe"
 ```
@@ -292,61 +316,37 @@ tts:
 **Microfone errado**
 ```bash
 python main.py --list-devices
-# Anote o índice do seu microfone
-python main.py --device 3
-# Ou salve no config.yaml:
-# audio:
-#   input_device: 3
+python main.py --device 3    # use o índice correto
 ```
 
-**Wake word não detecta / detecta errado**
+**Ollama demora para responder**
 ```yaml
-# Aumente o threshold para menos falsos positivos (0.5 a 0.9):
-wake_word:
-  threshold: 0.7
-
-# Ou use modo teclado para testar o resto do pipeline:
-wake_word:
-  fallback_mode: "keyboard"
-```
-
-**Whisper lento**
-```yaml
-# Use modelo menor:
-stt:
-  model: "tiny"     # mais rápido, menos preciso
-  model: "base"     # bom custo-benefício
-  device: "cuda"    # force GPU se tiver NVIDIA
-```
-
-**Ollama não responde / demora muito**
-```bash
-# Verifique se está rodando:
-ollama list
-ollama ps
-
-# Teste direto:
-curl http://localhost:11434/v1/models
-
-# Se demorar muito (cold start), aumente o timeout no config.yaml:
 agent:
-  # O timeout padrão é 240s — suficiente para a maioria dos casos
+  timeout: 300   # aumente o timeout (segundos)
+```
+
+**Hermes: porta 8642 não responde**
+```bash
+# Verifique os logs:
+docker logs hermes
+
+# Verifique se o override de porta está aplicado:
+docker port hermes
+# deve mostrar: 8642/tcp -> 127.0.0.1:8642
+```
+
+**Hermes: erro "No LLM provider configured"**
+```bash
+# Configure o provider dentro do container:
+docker exec -it hermes hermes model
+docker compose restart gateway
 ```
 
 **Erro de áudio no Linux**
 ```bash
 sudo apt install libportaudio2 portaudio19-dev
-# Adicione seu usuário ao grupo audio:
 sudo usermod -a -G audio $USER
 # Faça logout e login novamente
-```
-
-**Windows: erro de Unicode no terminal**
-```bash
-# O pipeline já configura UTF-8 automaticamente.
-# Se ainda tiver problemas:
-chcp 65001
-python main.py
 ```
 
 ---
@@ -355,53 +355,52 @@ python main.py
 
 ```
 morph_voice/
-├── main.py              # Entry point + máquina de estados
-├── config.py            # Carrega e valida config.yaml
-├── wake_word.py         # Detecção OpenWakeWord (ONNX)
-├── tts_piper.py         # Piper TTS subprocess wrapper
-├── stt_whisper.py       # faster-whisper STT
-├── agent_client.py      # HTTP client OpenAI-compat
-├── audio_player.py      # Playback cross-platform
-├── phrases.py           # 20 saudações + 20 esperas pt-BR
-├── web_dashboard.py     # Dashboard web (FastAPI + SSE)
-├── config.yaml          # Sua configuração (gitignored)
-├── config.yaml.example  # Template de configuração
-├── requirements.txt     # Dependências Python
-├── install.sh           # Setup automático Linux/macOS
-└── install.ps1          # Setup automático Windows
+├── main.py               # Entry point + máquina de estados
+├── config.py             # Carrega e valida config.yaml
+├── wake_word.py          # Detecção OpenWakeWord (ONNX)
+├── tts_piper.py          # Piper TTS wrapper
+├── stt_whisper.py        # faster-whisper STT
+├── agent_client.py       # HTTP client OpenAI-compat
+├── audio_player.py       # Playback cross-platform
+├── phrases.py            # 20 saudações + 20 esperas pt-BR
+├── web_dashboard.py      # Dashboard web (FastAPI + SSE)
+├── hermes_configure.py   # Reconfigura ~/.hermes/config.yaml (scripts/CI)
+├── hermes_start.ps1      # Sobe Hermes com provider escolhido (Windows)
+├── hermes_start.sh       # Sobe Hermes com provider escolhido (Linux/macOS)
+├── config.yaml           # Sua configuração (não versionado)
+├── config.yaml.example   # Template
+├── requirements.txt      # Dependências Python
+├── install.sh            # Setup automático Linux/macOS
+└── install.ps1           # Setup automático Windows
 
 ../piper_models/
-└── nanda_ptbr.onnx      # Modelo de voz pt-BR (+ .json)
+└── nanda_ptbr.onnx       # Modelo de voz pt-BR
 
 ../wake_word_models/
-└── central.onnx         # Modelo de wake word (substitua pelo seu)
+└── central.onnx          # Modelo de wake word
 
-../mascote.mf            # Modelfile Ollama — personalidade do assistente
+../mascote.mf             # Modelfile Ollama — personalidade pt-BR
 ```
 
 ---
 
-## Integração com aplicações externas (avatares, VTubing, etc.)
+## Integração com avatares e aplicações externas
 
-O pipeline expõe saída de áudio padrão do sistema. Para sincronizar com avatares:
-
-1. **Capture a saída de áudio** do sistema enquanto o Piper fala
-2. **Monitore os eventos SSE** do dashboard em `http://localhost:3005/events`:
+O pipeline publica eventos via SSE em `http://localhost:3005/events`:
 
 ```javascript
 const es = new EventSource('http://localhost:3005/events');
 es.onmessage = (e) => {
   const ev = JSON.parse(e.data);
-  if (ev.type === 'tts')   { /* Piper começou a falar — ative animação */ }
-  if (ev.type === 'state' && ev.state === 'SLEEPING') { /* parou de falar */ }
-  if (ev.type === 'response') { /* texto completo da resposta do LLM */ }
+  if (ev.type === 'tts')      { /* Piper começou a falar */ }
+  if (ev.type === 'response') { /* texto completo da resposta */ }
+  if (ev.type === 'state')    { /* mudança de estado: ev.state */ }
 };
 ```
 
-3. **Injete contexto** via `POST http://localhost:3005/send` com `{ "text": "..." }` para que o assistente responda a eventos externos (doações, follows, etc.)
-
----
-
-## Licença
-
-MIT — faça o que quiser, mas dá crédito se distribuir. 😄
+Para injetar mensagens externamente (triggers de stream, doações, etc.):
+```bash
+curl -X POST http://localhost:3005/send \
+  -H "Content-Type: application/json" \
+  -d '{"text": "alguém doou 10 reais!"}'
+```

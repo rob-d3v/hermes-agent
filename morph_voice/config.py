@@ -26,6 +26,7 @@ class AgentConfig:
     max_tokens: int = 150
     history_turns: int = 6
     history_reset_minutes: int = 10
+    timeout: int = 240  # segundos — 240 para Ollama cold start, 30 para APIs cloud
 
 
 @dataclass
