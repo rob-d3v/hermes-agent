@@ -1,5 +1,5 @@
 """
-Dashboard web para o morph_voice pipeline.
+Dashboard web para o avatar_voice pipeline.
 Mostra o estado em tempo real via SSE e permite injetar mensagens de texto.
 
 Uso interno: importado por main.py
@@ -39,7 +39,7 @@ _HTML = """<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>morph_voice</title>
+<title>avatar_voice</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Courier New', monospace; background: #0e0e14; color: #cdd6f4; height: 100vh; display: flex; flex-direction: column; }
@@ -93,7 +93,7 @@ _HTML = """<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>morph_voice</h1>
+  <h1>avatar_voice</h1>
   <div id="dot"></div>
   <div id="state-badge" class="SLEEPING">SLEEPING</div>
 </header>
@@ -141,7 +141,7 @@ es.onmessage = (e) => {
   } else if (ev.type === 'transcript') {
     addEntry('entry-user', 'você disse', ev.text);
   } else if (ev.type === 'response') {
-    addEntry('entry-assistant', 'morph', ev.text);
+    addEntry('entry-assistant', 'avatar', ev.text);
   } else if (ev.type === 'tts') {
     addEntry('entry-tts', 'tts', ev.text);
   } else if (ev.type === 'inject') {

@@ -115,7 +115,7 @@ if $READY; then
     ok "Hermes API rodando em http://localhost:8642"
     ok "Dashboard em     http://localhost:9119"
     echo ""
-    echo "  Para usar com morph_voice:"
+    echo "  Para usar com avatar_voice:"
     echo -e "    ${CYAN}python3 main.py --provider hermes${NC}"
     echo ""
     echo "  Para parar:"

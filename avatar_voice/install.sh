@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# morph_voice — Setup automático Linux/macOS
+# avatar_voice — Setup automático Linux/macOS
 # Uso: bash install.sh
 set -euo pipefail
 
@@ -14,7 +14,7 @@ info() { echo -e "  → $*"; }
 
 echo ""
 echo "╔══════════════════════════════════════════╗"
-echo "║      morph_voice — Instalação            ║"
+echo "║      avatar_voice — Instalação            ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 

@@ -123,7 +123,7 @@ if ($ready) {
     Ok "Hermes API rodando em http://localhost:8642"
     Ok "Dashboard em     http://localhost:9119"
     Write-Host ""
-    Write-Host "  Para usar com morph_voice:" -ForegroundColor White
+    Write-Host "  Para usar com avatar_voice:" -ForegroundColor White
     Write-Host "    python main.py --provider hermes" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "  Para parar:" -ForegroundColor White

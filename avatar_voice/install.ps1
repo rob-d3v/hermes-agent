@@ -1,4 +1,4 @@
-# morph_voice — Setup automático Windows
+# avatar_voice — Setup automático Windows
 # Uso: .\install.ps1
 # Requer PowerShell 5+
 # Permissões: Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
@@ -21,7 +21,7 @@ function Step  { param($n,$msg) Write-Host "`n[$n] $msg" -ForegroundColor White 
 
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║      morph_voice — Instalação Windows    ║" -ForegroundColor Cyan
+Write-Host "║      avatar_voice — Instalação Windows    ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 

@@ -20,7 +20,7 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Optional
 
-# Add parent dir to path so morph_voice can run standalone
+# Add parent dir to path so avatar_voice can run standalone
 sys.path.insert(0, str(Path(__file__).parent))
 
 from config import load_config, Config
@@ -108,7 +108,7 @@ def _set_state(state: State) -> State:
 
 
 def run_pipeline(cfg: Config, input_device: Optional[int] = None) -> None:
-    logger = logging.getLogger("morph_voice")
+    logger = logging.getLogger("avatar_voice")
 
     wake, tts, stt, agent = _build_components(cfg, input_device)
 
@@ -255,7 +255,7 @@ def main() -> None:
     parser.add_argument(
         "--config", "-c",
         default=None,
-        help="Caminho para config.yaml (default: morph_voice/config.yaml)",
+        help="Caminho para config.yaml (default: avatar_voice/config.yaml)",
     )
     parser.add_argument(
         "--device", "-d",

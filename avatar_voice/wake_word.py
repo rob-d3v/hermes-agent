@@ -2,7 +2,7 @@
 Wake word detection using OpenWakeWord.
 
 Modes:
-  custom   — load a custom .onnx model (e.g. morph.onnx)
+  custom   — load a custom .onnx model (e.g. avatar.onnx)
   builtin  — use a built-in openwakeword model (e.g. hey_jarvis)
   keyboard — press ENTER to activate (dev/test mode)
 """

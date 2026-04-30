@@ -1,5 +1,5 @@
 """
-Carrega e valida config.yaml para o pipeline morph_voice.
+Carrega e valida config.yaml para o pipeline avatar_voice.
 """
 import os
 import platform
@@ -92,7 +92,7 @@ def _detect_piper_binary() -> str:
 
 
 def _resolve_path(raw: str, base_dir: Path) -> str:
-    """Resolve relative paths relative to the morph_voice directory."""
+    """Resolve relative paths relative to the avatar_voice directory."""
     p = Path(raw)
     if p.is_absolute():
         return str(p)

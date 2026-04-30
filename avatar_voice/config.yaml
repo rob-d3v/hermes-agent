@@ -11,7 +11,7 @@ agent:
   history_reset_minutes: 10               # reseta histórico após X min dormindo (0 = nunca)
 
 wake_word:
-  model_path: "../wake_word_models/central.onnx"  # trocar para morph.onnx quando treinado
+  model_path: "../wake_word_models/central.onnx"  # trocar para avatar.onnx quando treinado
   threshold: 0.5
   cooldown_seconds: 2.0
   vad_rms_min: 50

@@ -1,4 +1,4 @@
-# morph_voice
+# avatar_voice
 
 Pipeline de voz local: **Wake Word → TTS → Whisper STT → LLM → TTS**
 
@@ -36,14 +36,14 @@ Funciona **100% offline** com Ollama, ou conectado a qualquer API OpenAI-compati
 ### Linux / macOS
 
 ```bash
-cd morph_voice
+cd avatar_voice
 bash install.sh
 ```
 
 ### Windows
 
 ```powershell
-cd morph_voice
+cd avatar_voice
 # Apenas na 1ª vez:
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 .\install.ps1
@@ -107,7 +107,7 @@ Acesse o dashboard: **http://localhost:3005**
 
 ## Modo 2 — Hermes Agent (dashboard + qualquer LLM)
 
-O Hermes roda em Docker e age como um "hub" entre o morph_voice e o LLM da sua escolha.
+O Hermes roda em Docker e age como um "hub" entre o avatar_voice e o LLM da sua escolha.
 Todas as conversas aparecem no dashboard do Hermes em **http://localhost:9119**.
 
 ### Passo 1 — Instale o Docker Desktop
@@ -138,27 +138,15 @@ docker compose ps
 Com o container rodando, abra o wizard interativo do Hermes:
 
 ```bash
-docker exec -it hermes hermes model
+docker exec -it hermes hermes setup
 ```
 
-Vai aparecer um menu assim:
-```
-  Select inference provider
-  ─────────────────────────
-  ▶ OpenRouter         (OPENROUTER_API_KEY)
-    OpenAI             (OPENAI_API_KEY)
-    Anthropic          (ANTHROPIC_API_KEY)
-    Ollama local       (custom endpoint)
-    LM Studio          (custom endpoint)
-    ...
-```
-
-Escolha o provider, insira a API key quando pedido, selecione o modelo e confirme.
+O wizard cobre tudo: provider, API key, modelo, ferramentas e plataformas.
 A configuração é salva automaticamente em `~/.hermes/config.yaml`.
 
-> **Dica:** Para o wizard completo (plataformas, memória, ferramentas):
+> **Dica:** Para trocar só o provider/modelo depois, sem rodar o setup completo:
 > ```bash
-> docker exec -it hermes hermes setup
+> docker exec -it hermes hermes model
 > ```
 
 ### Passo 4 — Reinicie o gateway
@@ -184,7 +172,7 @@ python main.py --provider hermes
 ```
 
 Acesse:
-- Dashboard morph_voice: **http://localhost:3005**
+- Dashboard avatar_voice: **http://localhost:3005**
 - Dashboard Hermes: **http://localhost:9119**
 
 ### Parar o Hermes
@@ -337,8 +325,8 @@ docker port hermes
 
 **Hermes: erro "No LLM provider configured"**
 ```bash
-# Configure o provider dentro do container:
-docker exec -it hermes hermes model
+# Rode o wizard de configuração dentro do container:
+docker exec -it hermes hermes setup
 docker compose restart gateway
 ```
 
@@ -354,7 +342,7 @@ sudo usermod -a -G audio $USER
 ## Estrutura de arquivos
 
 ```
-morph_voice/
+avatar_voice/
 ├── main.py               # Entry point + máquina de estados
 ├── config.py             # Carrega e valida config.yaml
 ├── wake_word.py          # Detecção OpenWakeWord (ONNX)

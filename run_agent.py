@@ -3194,7 +3194,7 @@ class AIAgent:
         ``terminal_tool._cleanup_inactive_envs`` still tears them down once
         ``terminal.lifetime_seconds`` is exceeded. Non-persistent backends are
         torn down per-turn as before to prevent resource leakage (the original
-        intent of this hook for the Morph backend, see commit fbd3a2fd).
+        intent of this hook for the Avatar backend, see commit fbd3a2fd).
         """
         try:
             if is_persistent_env(task_id):

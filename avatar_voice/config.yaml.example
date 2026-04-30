@@ -12,7 +12,7 @@ agent:
   timeout: 240                             # segundos — 240 para Ollama cold start, 30 para OpenAI/cloud
 
 wake_word:
-  model_path: "../wake_word_models/central.onnx"  # trocar para morph.onnx quando treinado
+  model_path: "../wake_word_models/central.onnx"  # trocar para avatar.onnx quando treinado
   threshold: 0.5
   cooldown_seconds: 2.0
   vad_rms_min: 50

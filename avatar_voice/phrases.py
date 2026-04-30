@@ -1,6 +1,6 @@
 """
 Frases de saudação e espera em pt-BR com sotaque goiano.
-Usadas pelo pipeline de voz do Morpheus.
+Usadas pelo pipeline de voz do Avatar.
 """
 import random
 from collections import deque
