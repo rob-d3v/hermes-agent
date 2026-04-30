@@ -1,115 +1,175 @@
-# Hermes Voice Pipeline — Setup Windows
-# Execute como: .\install.ps1
-# (requer PowerShell 5+ e permissões de execução: Set-ExecutionPolicy RemoteSigned -Scope CurrentUser)
+# morph_voice — Setup automático Windows
+# Uso: .\install.ps1
+# Requer PowerShell 5+
+# Permissões: Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 param(
     [switch]$SkipPiper,
-    [switch]$SkipSox
+    [switch]$SkipSox,
+    [switch]$SkipOllama
 )
 
 $ErrorActionPreference = "Stop"
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ScriptDir   = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PiperVersion = "2023.11.14-2"
-$PiperDir = "$env:LOCALAPPDATA\piper"
+$PiperDir    = "$env:LOCALAPPDATA\piper"
 
-Write-Host "=== Hermes Voice Pipeline — Setup Windows ===" -ForegroundColor Cyan
+function Ok   { param($msg) Write-Host "  [OK] $msg" -ForegroundColor Green }
+function Warn  { param($msg) Write-Host "  [!]  $msg" -ForegroundColor Yellow }
+function Info  { param($msg) Write-Host "   ->  $msg" -ForegroundColor Cyan }
+function Step  { param($n,$msg) Write-Host "`n[$n] $msg" -ForegroundColor White }
+
+Write-Host ""
+Write-Host "╔══════════════════════════════════════════╗" -ForegroundColor Cyan
+Write-Host "║      morph_voice — Instalação Windows    ║" -ForegroundColor Cyan
+Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
-# ── Python deps ─────────────────────────────────────────────────────────────
-Write-Host "[1/4] Instalando dependencias Python..." -ForegroundColor Yellow
-pip install -r "$ScriptDir\requirements.txt"
-Write-Host "      OK" -ForegroundColor Green
+# ── 1. Python ──────────────────────────────────────────────────────────────────
+Step "1/6" "Verificando Python..."
+try {
+    $pyVer = python --version 2>&1
+    Ok "Python encontrado: $pyVer"
+} catch {
+    Warn "Python não encontrado. Instale em: https://www.python.org/downloads/"
+    Warn "Marque 'Add Python to PATH' durante a instalação."
+    exit 1
+}
 
-# ── Piper TTS ────────────────────────────────────────────────────────────────
-Write-Host "[2/4] Verificando Piper TTS..." -ForegroundColor Yellow
+# ── 2. Pacotes Python ──────────────────────────────────────────────────────────
+Step "2/6" "Instalando pacotes Python..."
+try {
+    pip install -r "$ScriptDir\requirements.txt" -q
+    Ok "Pacotes Python instalados"
+} catch {
+    Warn "Falha ao instalar pacotes. Tente: pip install -r requirements.txt"
+}
+
+# ── 3. Piper TTS ───────────────────────────────────────────────────────────────
+Step "3/6" "Verificando Piper TTS..."
 if (-not $SkipPiper) {
     $piperExe = Get-Command piper.exe -ErrorAction SilentlyContinue
     if ($piperExe) {
-        Write-Host "      Piper ja instalado: $($piperExe.Path)" -ForegroundColor Green
+        Ok "Piper já instalado: $($piperExe.Path)"
     } else {
-        Write-Host "      Baixando Piper $PiperVersion para Windows..."
+        Info "Baixando Piper $PiperVersion para Windows..."
         $piperZip = "$env:TEMP\piper_windows_amd64.zip"
         $piperUrl = "https://github.com/rhasspy/piper/releases/download/$PiperVersion/piper_windows_amd64.zip"
-
         try {
             Invoke-WebRequest -Uri $piperUrl -OutFile $piperZip -UseBasicParsing
             if (-not (Test-Path $PiperDir)) { New-Item -ItemType Directory -Path $PiperDir | Out-Null }
             Expand-Archive -Path $piperZip -DestinationPath $PiperDir -Force
             Remove-Item $piperZip -Force
 
-            # Add to user PATH if not already there
-            $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
             $piperBinDir = "$PiperDir\piper"
+            $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
             if ($userPath -notlike "*$piperBinDir*") {
                 [Environment]::SetEnvironmentVariable("PATH", "$userPath;$piperBinDir", "User")
                 $env:PATH += ";$piperBinDir"
-                Write-Host "      Adicionado $piperBinDir ao PATH do usuario." -ForegroundColor Green
             }
-            Write-Host "      Piper instalado em $piperBinDir\piper.exe" -ForegroundColor Green
-            Write-Host "      IMPORTANTE: Abra um novo terminal para que o PATH seja atualizado." -ForegroundColor Yellow
+            Ok "Piper instalado em $piperBinDir\piper.exe"
+            Warn "Abra um NOVO terminal para que o PATH seja atualizado."
         } catch {
-            Write-Host "      AVISO: Nao foi possivel baixar Piper automaticamente." -ForegroundColor Yellow
-            Write-Host "      Baixe manualmente em: https://github.com/rhasspy/piper/releases" -ForegroundColor Yellow
-            Write-Host "      Coloque piper.exe em algum diretorio do PATH ou especifique o caminho em config.yaml"
+            Warn "Não foi possível baixar Piper automaticamente."
+            Warn "Baixe manualmente: https://github.com/rhasspy/piper/releases"
+            Warn "Extraia e coloque piper.exe em algum diretório do PATH."
+            Warn "Ou configure 'tts.piper_binary' no config.yaml com o caminho completo."
         }
     }
 } else {
-    Write-Host "      Pulando (--SkipPiper)" -ForegroundColor DarkGray
+    Info "Piper pulado (--SkipPiper)"
 }
 
-# ── Sox (opcional, para pitch) ───────────────────────────────────────────────
-Write-Host "[3/4] Verificando Sox (opcional, para ajuste de pitch)..." -ForegroundColor Yellow
+# ── 4. Sox (opcional) ──────────────────────────────────────────────────────────
+Step "4/6" "Verificando Sox (opcional — necessário apenas para ajuste de pitch)..."
 if (-not $SkipSox) {
     $soxExe = Get-Command sox.exe -ErrorAction SilentlyContinue
     if ($soxExe) {
-        Write-Host "      Sox ja instalado: $($soxExe.Path)" -ForegroundColor Green
+        Ok "Sox já instalado: $($soxExe.Path)"
     } else {
-        # Try winget first, then choco
         $winget = Get-Command winget -ErrorAction SilentlyContinue
-        $choco = Get-Command choco -ErrorAction SilentlyContinue
-
+        $choco  = Get-Command choco  -ErrorAction SilentlyContinue
         if ($winget) {
-            Write-Host "      Instalando Sox via winget..."
+            Info "Instalando Sox via winget..."
             try {
-                winget install --id SoX.SoX --accept-source-agreements --accept-package-agreements
-                Write-Host "      Sox instalado via winget." -ForegroundColor Green
-            } catch {
-                Write-Host "      Falhou via winget. Sox e opcional — pitch adjustment estara desabilitado." -ForegroundColor Yellow
-            }
+                winget install --id SoX.SoX --accept-source-agreements --accept-package-agreements --silent
+                Ok "Sox instalado via winget"
+            } catch { Warn "Falhou via winget. Sox é opcional." }
         } elseif ($choco) {
-            Write-Host "      Instalando Sox via chocolatey..."
+            Info "Instalando Sox via Chocolatey..."
             try {
-                choco install sox -y
-                Write-Host "      Sox instalado via choco." -ForegroundColor Green
-            } catch {
-                Write-Host "      Falhou via choco. Sox e opcional." -ForegroundColor Yellow
-            }
+                choco install sox -y | Out-Null
+                Ok "Sox instalado via choco"
+            } catch { Warn "Falhou via choco. Sox é opcional." }
         } else {
-            Write-Host "      Sox nao encontrado e winget/choco nao disponiveis." -ForegroundColor Yellow
-            Write-Host "      Sox e opcional (necessario apenas para pitch_semitones != 0)." -ForegroundColor Yellow
+            Warn "Sox não encontrado. É opcional — usado apenas se pitch_semitones != 0."
         }
     }
 } else {
-    Write-Host "      Pulando (--SkipSox)" -ForegroundColor DarkGray
+    Info "Sox pulado (--SkipSox)"
 }
 
-# ── Config ────────────────────────────────────────────────────────────────────
-Write-Host "[4/4] Configuracao..." -ForegroundColor Yellow
+# ── 5. OpenWakeWord models ─────────────────────────────────────────────────────
+Step "5/6" "Baixando modelos OpenWakeWord..."
+try {
+    python -c "import openwakeword; openwakeword.utils.download_models()" 2>$null
+    Ok "Modelos OpenWakeWord baixados"
+} catch {
+    Warn "Não foi possível baixar modelos OpenWakeWord automaticamente."
+    Warn "Rode manualmente: python -c `"import openwakeword; openwakeword.utils.download_models()`""
+}
+
+# ── 6. Config ──────────────────────────────────────────────────────────────────
+Step "6/6" "Configuração..."
 $configFile = "$ScriptDir\config.yaml"
 if (-not (Test-Path $configFile)) {
     Copy-Item "$ScriptDir\config.yaml.example" $configFile
-    Write-Host "      config.yaml criado a partir do exemplo." -ForegroundColor Green
-    Write-Host "      Edite $configFile para ajustar o modelo e caminhos."
+    Ok "config.yaml criado a partir do exemplo"
 } else {
-    Write-Host "      config.yaml ja existe." -ForegroundColor Green
+    Ok "config.yaml já existe (não sobrescrito)"
 }
 
+# ── Verificar Ollama ───────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "=== Instalacao concluida! ===" -ForegroundColor Cyan
+Write-Host "── Verificando Ollama..." -ForegroundColor White
+if (-not $SkipOllama) {
+    $ollamaCmd = Get-Command ollama -ErrorAction SilentlyContinue
+    if ($ollamaCmd) {
+        Ok "Ollama encontrado"
+        try {
+            $resp = Invoke-WebRequest -Uri "http://localhost:11434/api/version" -UseBasicParsing -ErrorAction Stop
+            Ok "Ollama está rodando"
+            $models = ollama list 2>$null | Select-Object -Skip 1 | ForEach-Object { $_.Split()[0] }
+            if ($models) { Info "Modelos disponíveis: $($models -join ', ')" }
+        } catch {
+            Warn "Ollama não está rodando. Inicie com: ollama serve"
+        }
+    } else {
+        Warn "Ollama não encontrado. Instale em: https://ollama.com"
+    }
+}
+
+# ── Resultado final ─────────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "Para iniciar:" -ForegroundColor White
-Write-Host "  cd $ScriptDir"
-Write-Host "  python main.py --list-devices    # veja os dispositivos de audio"
-Write-Host "  python main.py                   # inicia o pipeline"
+Write-Host "╔══════════════════════════════════════════╗" -ForegroundColor Cyan
+Write-Host "║      Instalação concluída!               ║" -ForegroundColor Cyan
+Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Dica: Se o modelo de wake word ainda nao existe, use fallback_mode: keyboard em config.yaml" -ForegroundColor DarkCyan
+Write-Host "Próximos passos:" -ForegroundColor White
+Write-Host ""
+Write-Host "  1. Baixe um modelo no Ollama:"
+Write-Host "       ollama pull gemma2:2b"
+Write-Host "       ollama create mascote -f ..\mascote.mf   # personalidade pt-BR (opcional)"
+Write-Host ""
+Write-Host "  2. Edite o config.yaml se necessário:"
+Write-Host "       notepad $configFile"
+Write-Host ""
+Write-Host "  3. Rode:" -ForegroundColor White
+Write-Host "       python main.py --list-devices   # veja os dispositivos de áudio"
+Write-Host "       python main.py                  # inicia (dashboard em localhost:3005)"
+Write-Host ""
+Write-Host "  4. Para testar sem wake word (pressione Enter para ativar):"
+Write-Host "       Descomente 'fallback_mode: keyboard' no config.yaml"
+Write-Host ""
+Write-Host "  Dashboard web: http://localhost:3005" -ForegroundColor Cyan
+Write-Host ""

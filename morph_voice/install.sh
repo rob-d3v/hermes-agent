@@ -1,63 +1,72 @@
 #!/usr/bin/env bash
-# Hermes Voice Pipeline — Instalação Linux/macOS
+# morph_voice — Setup automático Linux/macOS
+# Uso: bash install.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PIPER_DIR="$HOME/.local/bin"
 PIPER_VERSION="2023.11.14-2"
+PIPER_DIR="$HOME/.local/bin"
 
-echo "=== Hermes Voice Pipeline — Setup ==="
+GREEN="\033[0;32m"; YELLOW="\033[1;33m"; RED="\033[0;31m"; NC="\033[0m"
+ok()   { echo -e "${GREEN}  ✔ $*${NC}"; }
+warn() { echo -e "${YELLOW}  ⚠ $*${NC}"; }
+info() { echo -e "  → $*"; }
+
+echo ""
+echo "╔══════════════════════════════════════════╗"
+echo "║      morph_voice — Instalação            ║"
+echo "╚══════════════════════════════════════════╝"
 echo ""
 
-# ── Python deps ────────────────────────────────────────────────────────────
-echo "[1/4] Instalando dependências Python..."
-pip install -r "$SCRIPT_DIR/requirements.txt"
-echo "      OK"
+# ── 1. Python ─────────────────────────────────────────────────────────────────
+echo "[1/6] Verificando Python..."
+if ! command -v python3 &>/dev/null; then
+    warn "Python 3 não encontrado. Instale Python 3.10+ e rode novamente."
+    exit 1
+fi
+PY_VER=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+ok "Python $PY_VER encontrado"
 
-# ── PortAudio (sounddevice dep) ────────────────────────────────────────────
-echo "[2/4] Verificando PortAudio..."
+# ── 2. PortAudio + Sox ────────────────────────────────────────────────────────
+echo "[2/6] Instalando dependências de sistema..."
 OS="$(uname -s)"
 if [[ "$OS" == "Linux" ]]; then
     if command -v apt-get &>/dev/null; then
-        sudo apt-get install -y libportaudio2 portaudio19-dev sox
+        sudo apt-get install -y -q libportaudio2 portaudio19-dev sox ffmpeg 2>/dev/null || warn "apt falhou — tente instalar libportaudio2 manualmente"
     elif command -v dnf &>/dev/null; then
-        sudo dnf install -y portaudio-devel sox
+        sudo dnf install -y portaudio-devel sox ffmpeg 2>/dev/null || warn "dnf falhou"
     elif command -v pacman &>/dev/null; then
-        sudo pacman -S --noconfirm portaudio sox
+        sudo pacman -S --noconfirm portaudio sox ffmpeg 2>/dev/null || warn "pacman falhou"
     else
-        echo "      AVISO: instale libportaudio2 e sox manualmente para sua distro."
+        warn "Instale libportaudio2 e sox manualmente para sua distro."
     fi
 elif [[ "$OS" == "Darwin" ]]; then
     if command -v brew &>/dev/null; then
-        brew install portaudio sox
+        brew install portaudio sox ffmpeg 2>/dev/null || warn "brew falhou"
     else
-        echo "      AVISO: instale Homebrew e depois: brew install portaudio sox"
+        warn "Instale Homebrew: https://brew.sh — depois: brew install portaudio sox"
     fi
 fi
-echo "      OK"
+ok "Dependências de sistema verificadas"
 
-# ── Piper TTS binary ──────────────────────────────────────────────────────
-echo "[3/4] Verificando Piper TTS..."
+# ── 3. Python packages ────────────────────────────────────────────────────────
+echo "[3/6] Instalando pacotes Python..."
+pip install -r "$SCRIPT_DIR/requirements.txt" -q
+ok "Pacotes Python instalados"
+
+# ── 4. Piper TTS ──────────────────────────────────────────────────────────────
+echo "[4/6] Verificando Piper TTS..."
 if command -v piper &>/dev/null; then
-    echo "      Piper já instalado: $(which piper)"
+    ok "Piper já instalado: $(which piper)"
 else
-    echo "      Baixando Piper $PIPER_VERSION..."
+    info "Baixando Piper $PIPER_VERSION..."
     ARCH="$(uname -m)"
-    mkdir -p "$PIPER_DIR"
-
+    PIPER_ARCHIVE=""
     if [[ "$OS" == "Linux" ]]; then
-        if [[ "$ARCH" == "x86_64" ]]; then
-            PIPER_ARCHIVE="piper_linux_x86_64.tar.gz"
-        elif [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
-            PIPER_ARCHIVE="piper_linux_aarch64.tar.gz"
-        else
-            echo "      AVISO: Arquitetura $ARCH não suportada. Baixe Piper manualmente."
-            PIPER_ARCHIVE=""
-        fi
+        [[ "$ARCH" == "x86_64" ]]  && PIPER_ARCHIVE="piper_linux_x86_64.tar.gz"
+        [[ "$ARCH" == "aarch64" ]] && PIPER_ARCHIVE="piper_linux_aarch64.tar.gz"
     elif [[ "$OS" == "Darwin" ]]; then
         PIPER_ARCHIVE="piper_macos_x86_64.tar.gz"
-    else
-        PIPER_ARCHIVE=""
     fi
 
     if [[ -n "$PIPER_ARCHIVE" ]]; then
@@ -66,31 +75,77 @@ else
             "https://github.com/rhasspy/piper/releases/download/${PIPER_VERSION}/${PIPER_ARCHIVE}" \
             -o "$TMP/$PIPER_ARCHIVE"
         tar -xzf "$TMP/$PIPER_ARCHIVE" -C "$TMP"
+        mkdir -p "$PIPER_DIR"
         cp "$TMP/piper/piper" "$PIPER_DIR/piper"
         chmod +x "$PIPER_DIR/piper"
         rm -rf "$TMP"
-        echo "      Piper instalado em $PIPER_DIR/piper"
-        echo "      Certifique-se de que $PIPER_DIR está no seu PATH."
+        ok "Piper instalado em $PIPER_DIR/piper"
+        if [[ ":$PATH:" != *":$PIPER_DIR:"* ]]; then
+            warn "Adicione ao seu .bashrc ou .zshrc:"
+            warn "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+        fi
+    else
+        warn "Arquitetura $ARCH/$OS não suportada. Baixe em: https://github.com/rhasspy/piper/releases"
     fi
 fi
 
-# ── Config ────────────────────────────────────────────────────────────────
-echo "[4/4] Configuração..."
+# ── 5. OpenWakeWord models ────────────────────────────────────────────────────
+echo "[5/6] Baixando modelos OpenWakeWord..."
+python3 -c "
+import sys
+try:
+    import openwakeword
+    openwakeword.utils.download_models()
+    print('  → Modelos OpenWakeWord baixados.')
+except Exception as e:
+    print(f'  ⚠ {e}')
+" 2>/dev/null || warn "Não foi possível baixar modelos OpenWakeWord automaticamente."
+ok "OpenWakeWord pronto"
+
+# ── 6. Config ─────────────────────────────────────────────────────────────────
+echo "[6/6] Configuração..."
 CONFIG_FILE="$SCRIPT_DIR/config.yaml"
 if [[ ! -f "$CONFIG_FILE" ]]; then
     cp "$SCRIPT_DIR/config.yaml.example" "$CONFIG_FILE"
-    echo "      config.yaml criado a partir do exemplo."
-    echo "      Edite $CONFIG_FILE para ajustar o modelo e caminhos."
+    ok "config.yaml criado"
 else
-    echo "      config.yaml já existe."
+    ok "config.yaml já existe (não sobrescrito)"
+fi
+
+# ── Verificar Ollama ──────────────────────────────────────────────────────────
+echo ""
+echo "── Verificando Ollama..."
+if command -v ollama &>/dev/null; then
+    ok "Ollama encontrado: $(ollama --version 2>/dev/null | head -1)"
+    if curl -s http://localhost:11434/api/version &>/dev/null; then
+        ok "Ollama está rodando"
+        MODELS=$(ollama list 2>/dev/null | tail -n +2 | awk '{print $1}' | tr '\n' ' ')
+        [[ -n "$MODELS" ]] && info "Modelos disponíveis: $MODELS"
+    else
+        warn "Ollama não está rodando. Inicie com: ollama serve"
+    fi
+else
+    warn "Ollama não encontrado. Instale em: https://ollama.com"
 fi
 
 echo ""
-echo "=== Instalação concluída! ==="
+echo "╔══════════════════════════════════════════╗"
+echo "║      Instalação concluída!               ║"
+echo "╚══════════════════════════════════════════╝"
 echo ""
-echo "Para iniciar:"
-echo "  cd $SCRIPT_DIR"
-echo "  python main.py --list-devices    # veja os dispositivos de áudio"
-echo "  python main.py                   # inicia o pipeline"
+echo "Próximos passos:"
 echo ""
-echo "Se o modelo de wake word ainda não existe, use fallback_mode: keyboard em config.yaml"
+echo "  1. Inicie o Ollama e baixe um modelo:"
+echo "     ollama pull gemma2:2b"
+echo "     ollama create mascote -f ../mascote.mf   # opcional: personalidade pt-BR"
+echo ""
+echo "  2. Edite o config.yaml se necessário:"
+echo "     nano $CONFIG_FILE"
+echo ""
+echo "  3. Rode:"
+echo "     python3 main.py --list-devices   # veja os dispositivos de áudio"
+echo "     python3 main.py                  # inicia (dashboard em localhost:3005)"
+echo ""
+echo "  4. Para testar sem wake word (pressione Enter para ativar):"
+echo "     Descomente 'fallback_mode: keyboard' no config.yaml"
+echo ""
