@@ -1,0 +1,18 @@
+# Hermes Voice Pipeline — Dependências Python
+# Instale com: pip install -r requirements.txt
+
+openwakeword>=0.6.0
+faster-whisper>=1.0.0
+sounddevice>=0.4.6
+numpy>=1.24.0
+requests>=2.31.0
+PyYAML>=6.0
+pyaudio>=0.2.13
+fastapi>=0.110.0
+uvicorn>=0.29.0
+
+# Opcionais (para ajuste de pitch via sox):
+# sox deve ser instalado como pacote do sistema (não pip)
+# Linux:   sudo apt install sox
+# macOS:   brew install sox
+# Windows: choco install sox  ou  winget install SoX.SoX

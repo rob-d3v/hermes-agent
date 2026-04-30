@@ -70,3 +70,10 @@ mini-swe-agent/
 result
 website/static/api/skills-index.json
 models-dev-upstream/
+*.onnx
+wake_word_models/central.json
+wake_word_models/central.onnx.data
+wake_word_models/central.pkl
+piper_models/nanda_ptbr.onnx.json
+hermes-agent.pdf
+NOTES.txt

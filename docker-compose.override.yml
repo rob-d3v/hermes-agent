@@ -1,0 +1,16 @@
+# Expõe as portas 8642 (API) e 9119 (dashboard) no Windows.
+# Usa bridge networking + host.docker.internal para alcançar o Ollama nativo.
+services:
+  gateway:
+    network_mode: bridge
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:8642:8642"
+
+  dashboard:
+    network_mode: bridge
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:9119:9119"
