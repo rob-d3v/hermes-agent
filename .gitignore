@@ -78,3 +78,5 @@ piper_models/nanda_ptbr.onnx.json
 hermes-agent.pdf
 NOTES.txt
 wake_word_models/morphi.onnx.data
+build/*
+dist/*

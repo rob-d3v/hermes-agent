@@ -45,7 +45,8 @@
       "Bash(python hermes_configure.py show)",
       "Bash(python -c \"import ast; ast.parse\\(open\\(''app.py''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")",
       "Bash(python -c \"import ast; ast.parse\\(open\\(''app.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")",
-      "Bash(python -c \"import ast; ast.parse\\(open\\(''app.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''OK''\\)\")"
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''app.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''OK''\\)\")",
+      "Bash(pyinstaller build.spec --distpath ../dist --workpath ../build --noconfirm)"
     ]
   }
 }

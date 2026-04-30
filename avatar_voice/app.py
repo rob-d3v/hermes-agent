@@ -60,7 +60,20 @@ PROVIDER_PRESETS = {
     "openrouter": ("openai/gpt-4o-mini","",                                 "https://openrouter.ai/api/v1"),
 }
 
-CONFIG_PATH = Path(__file__).parent / "config.yaml"
+def _app_dir() -> Path:
+    """Diretório de dados do usuário: junto ao .exe quando frozen, junto ao app.py em dev."""
+    return Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
+
+CONFIG_PATH = _app_dir() / "config.yaml"
+
+DEFAULT_SYSTEM = (
+    "Você é um mascote de stream e sem filtro.\n"
+    "Você fala com sotaque de Goiás, usa expressões como 'uai', 'trem', 'anêim', "
+    "'tá doido' e 'mô do céu'.\n"
+    "Suas respostas devem ser curtas (máximo 2 frases) para o TTS não demorar.\n"
+    "Seja engraçado, meio sarcástico e trate o pessoal da stream como se fosse "
+    "todo mundo de casa."
+)
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
@@ -162,6 +175,34 @@ class App(ctk.CTk):
         self._model_e  = self._row(s, "Model")
         self._apikey_e = self._row(s, "API Key", show="*")
         self._url_e    = self._row(s, "URL")
+
+        # Mascote (Ollama Modelfile)
+        sm = self._card(scroll, "MASCOTE  (Ollama Modelfile)")
+        r  = self._hrow(sm)
+        self._mf_base_e = self._labeled(r, "Base", width=110)
+        self._mf_base_e.insert(0, "gemma2:2b")
+        self._mf_name_e = self._labeled(r, "Nome", width=85)
+        self._mf_name_e.insert(0, "mascote")
+        r2 = self._hrow(sm)
+        self._mf_temp_lbl, self._mf_temp_sl = self._slider(
+            r2, "Temp", 0.1, 2.0, 19, 0.9, fmt=lambda v: f"{v:.1f}")
+        ctk.CTkLabel(sm, text="System prompt:", font=("Courier New", 9),
+                     text_color=MUTED).pack(anchor="w", pady=(6, 1))
+        self._mf_sys = ctk.CTkTextbox(
+            sm, height=88, font=("Courier New", 10), fg_color=SURFACE,
+            text_color=TEXT, wrap="word", border_color=MUTED,
+            border_width=1, corner_radius=6)
+        self._mf_sys.pack(fill="x", pady=(0, 6))
+        self._mf_sys.insert("1.0", DEFAULT_SYSTEM)
+        r3 = self._hrow(sm)
+        ctk.CTkButton(r3, text="Salvar .mf", width=100, height=28,
+                      corner_radius=6, font=("Courier New", 10),
+                      fg_color=OVERLAY, hover_color=MUTED, text_color=TEXT,
+                      command=self._save_modelfile).pack(side="left", padx=(0, 8))
+        ctk.CTkButton(r3, text="Criar no Ollama", width=130, height=28,
+                      corner_radius=6, font=("Courier New", 10, "bold"),
+                      fg_color=MAUVE, hover_color="#b994e8", text_color="#1e1e2e",
+                      command=self._create_mascote).pack(side="left")
 
         # Whisper STT
         s2 = self._card(scroll, "WHISPER  (STT)")
@@ -442,10 +483,16 @@ class App(ctk.CTk):
             self._start()
 
     def _start(self):
-        cmd = [sys.executable,
-               str(Path(__file__).parent / "main.py"),
-               "--provider", self._prov_var.get(),
-               "--port", "3005"]
+        if getattr(sys, "frozen", False):
+            # Running as PyInstaller .exe — re-invoke self with _pipeline flag
+            cmd = [sys.executable, "_pipeline",
+                   "--provider", self._prov_var.get(),
+                   "--port", "3005"]
+        else:
+            cmd = [sys.executable,
+                   str(Path(__file__).parent / "main.py"),
+                   "--provider", self._prov_var.get(),
+                   "--port", "3005"]
         model = self._model_e.get().strip()
         if model:
             cmd += ["--model", model]
@@ -454,7 +501,7 @@ class App(ctk.CTk):
             self._proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, bufsize=1,
-                cwd=str(Path(__file__).parent),
+                cwd=str(_app_dir()),
                 env={**os.environ, "PYTHONIOENCODING": "utf-8"},
             )
         except Exception as exc:
@@ -553,6 +600,66 @@ class App(ctk.CTk):
         self._chat.see("end")
         self._chat.configure(state="disabled")
 
+    def _build_modelfile(self) -> str:
+        base  = self._mf_base_e.get().strip() or "gemma2:2b"
+        temp  = round(self._mf_temp_sl.get(), 1)
+        sys_p = self._mf_sys.get("1.0", "end").strip()
+        return (
+            f"FROM {base}\n"
+            f"PARAMETER temperature {temp}\n"
+            'PARAMETER stop "User:"\n'
+            'SYSTEM """\n'
+            f"{sys_p}\n"
+            '"""\n'
+        )
+
+    def _save_modelfile(self):
+        content = self._build_modelfile()
+        name    = self._mf_name_e.get().strip() or "mascote"
+        path    = filedialog.asksaveasfilename(
+            defaultextension=".mf",
+            filetypes=[("Modelfile", "*.mf"), ("All", "*.*")],
+            initialfile=f"{name}.mf",
+        )
+        if not path:
+            return
+        Path(path).write_text(content, encoding="utf-8")
+        self._log_line(f"Modelfile salvo: {path}")
+
+    def _create_mascote(self):
+        import tempfile
+        name    = self._mf_name_e.get().strip() or "mascote"
+        content = self._build_modelfile()
+        tmp     = Path(tempfile.mktemp(suffix=".mf"))
+        tmp.write_text(content, encoding="utf-8")
+        self._log_line(f"Criando modelo '{name}'… veja no Monitor.")
+        self._tabs.set("Monitor")
+        threading.Thread(
+            target=self._run_ollama_create, args=(name, tmp), daemon=True
+        ).start()
+
+    def _run_ollama_create(self, name: str, mf_path: Path):
+        try:
+            proc = subprocess.Popen(
+                ["ollama", "create", name, "-f", str(mf_path)],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, bufsize=1,
+                env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+            )
+            for line in proc.stdout:
+                self._evq.put(("log", line.rstrip()))
+            proc.wait()
+            self._evq.put(("log", f"[ollama] '{name}' pronto (código {proc.returncode})"))
+        except FileNotFoundError:
+            self._evq.put(("log", "[ollama] comando não encontrado — Ollama instalado?"))
+        except Exception as e:
+            self._evq.put(("log", f"[ollama] erro: {e}"))
+        finally:
+            try:
+                mf_path.unlink()
+            except Exception:
+                pass
+
     def _restore_device(self, combo: ctk.CTkComboBox, saved):
         if not saved:
             combo.set("Default")
@@ -599,4 +706,14 @@ class App(ctk.CTk):
 
 
 if __name__ == "__main__":
-    App().mainloop()
+    if len(sys.argv) > 1 and sys.argv[1] == "_pipeline":
+        sys.argv.pop(1)
+        if not getattr(sys, "frozen", False):
+            # Dev mode: add avatar_voice/ to path (frozen: PyInstaller already did it)
+            _pkg = str(Path(__file__).parent)
+            if _pkg not in sys.path:
+                sys.path.insert(0, _pkg)
+        import main as _m
+        _m.main()
+    else:
+        App().mainloop()
