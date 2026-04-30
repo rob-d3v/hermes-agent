@@ -26,6 +26,30 @@ Funciona **100% offline** com Ollama, ou conectado a qualquer API OpenAI-compati
 
 ---
 
+## Interface Gráfica — `app.py` (Recomendado)
+
+A forma mais fácil de usar o sistema. Uma janela compacta com tudo integrado:
+
+```bash
+cd avatar_voice
+python app.py
+```
+
+**Abas:**
+- **Setup** — escolhe provider, configura Whisper, Piper, wake word e dispositivos de áudio; salva `config.yaml` com um clique
+- **Monitor** — log em tempo real do processo
+- **Chat** — vê transcrições e injeta mensagens de texto (bypass da wake word)
+
+**Botões:**
+- **Save** — salva as configurações no `config.yaml`
+- **▶ Start / ■ Stop** — inicia/para o pipeline (salva automaticamente antes de iniciar)
+
+O estado atual aparece no canto superior direito em tempo real (SLEEPING, LISTENING, PROCESSING…).
+
+> **Nota:** o `app.py` requer `customtkinter` — instalado automaticamente pelo `install.sh` / `install.ps1`.
+
+---
+
 ## Instalação
 
 ### Pré-requisitos

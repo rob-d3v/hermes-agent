@@ -42,7 +42,9 @@
       "Bash(grep -r \"ollama\\\\|provider\" E:/backup_2026/Repositórios/hermes-agent/hermes --include=*.py -l)",
       "Bash(grep -r \"ollama\\\\|openai\\\\|provider\" E:/backup_2026/Repositórios/hermes-agent/gateway --include=*.py -l)",
       "Bash(python3 -c \"import sys,json; [print\\(m[''''name'''']\\) for m in json.load\\(sys.stdin\\)[''''models'''']]\")",
-      "Bash(python hermes_configure.py show)"
+      "Bash(python hermes_configure.py show)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''app.py''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''app.py'', encoding=''utf-8''\\).read\\(\\)\\); print\\(''syntax OK''\\)\")"
     ]
   }
 }
