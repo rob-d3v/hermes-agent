@@ -16,7 +16,7 @@ wake_word:
 tts:
   piper_binary: piper
   model_path: ../piper_models/nanda_ptbr.onnx
-  length_scale: 0.75
+  length_scale: 0.85
   noise_scale: 0.667
   noise_w: 0.8
   pitch_semitones: 5
@@ -32,7 +32,7 @@ stt:
   max_session_seconds: 20.0
 audio:
   input_device: 1
-  output_device: 2
+  output_device: null
   sample_rate: 16000
 logging:
   level: INFO

@@ -1,5 +1,5 @@
 """
-morph_voice — Desktop App
+avatar_voice — Desktop App
 Setup, controle e chat numa janela compacta.
 
 Uso: python app.py
@@ -80,7 +80,7 @@ DEFAULT_SYSTEM = (
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("morph_voice")
+        self.title("avatar_voice")
         self.geometry("500x740")
         self.minsize(460, 600)
         self.configure(fg_color=SURFACE)
@@ -306,7 +306,7 @@ class App(ctk.CTk):
         self._chat.pack(fill="both", expand=True, padx=8, pady=(8, 4))
         self._chat.configure(state="disabled")
         self._chat.tag_config("user",    foreground=GREEN)
-        self._chat.tag_config("morph",   foreground=BLUE)
+        self._chat.tag_config("avatar",   foreground=BLUE)
         self._chat.tag_config("inject",  foreground=YELLOW)
         self._chat.tag_config("dim",     foreground=MUTED)
 
@@ -618,7 +618,7 @@ class App(ctk.CTk):
         t = ev.get("type")
         if   t == "state":      self._set_state(ev.get("state",""))
         elif t == "transcript": self._chat_append("você",    ev.get("text",""), "user")
-        elif t == "response":   self._chat_append("morph",   ev.get("text",""), "morph")
+        elif t == "response":   self._chat_append("avatar",   ev.get("text",""), "avatar")
         elif t == "inject":     self._chat_append("enviado", ev.get("text",""), "inject")
         elif t == "tts":        self._log_line(f"[TTS] {ev.get('text','')[:70]}")
 

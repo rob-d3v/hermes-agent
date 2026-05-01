@@ -266,14 +266,7 @@ class PiperTTS:
                     audio_np.astype(np.float32) * self.volume, -32768, 32767
                 ).astype(np.int16)
 
-            out_kw = {"samplerate": PIPER_SAMPLE_RATE, "channels": PIPER_CHANNELS,
-                      "dtype": "int16"}
-            if self.output_device is not None:
-                out_kw["device"] = self.output_device
-
-            with sd.OutputStream(**out_kw) as stream:
-                stream.write(audio_np)
-
+            self._play_numpy_audio(sd, np, audio_np)
             return True
 
         except Exception as e:
@@ -342,13 +335,7 @@ class PiperTTS:
                     audio_np.astype(np.float32) * self.volume, -32768, 32767
                 ).astype(np.int16)
 
-            out_kw = {"samplerate": PIPER_SAMPLE_RATE, "channels": PIPER_CHANNELS,
-                      "dtype": "int16"}
-            if self.output_device is not None:
-                out_kw["device"] = self.output_device
-
-            with sd.OutputStream(**out_kw) as stream:
-                stream.write(audio_np)
+            self._play_numpy_audio(sd, np, audio_np)
             return True
 
         except subprocess.TimeoutExpired:
@@ -398,6 +385,31 @@ class PiperTTS:
             return np.clip(shifted, -32768, 32767).astype(np.int16)
         except Exception:
             return audio
+
+    def _play_numpy_audio(self, sd, np, audio_np: "np.ndarray") -> None:
+        """Play a mono int16 ndarray, converting to stereo if the device requires it."""
+        try:
+            dev_id = self.output_device
+            if dev_id is None:
+                dev_id = sd.default.device[1]
+            info = sd.query_devices(dev_id)
+            max_ch = int(info.get("max_output_channels", 2))
+        except Exception:
+            max_ch = 2
+
+        # Cap at stereo; never below 1
+        out_ch = max(1, min(max_ch, 2))
+
+        if out_ch > PIPER_CHANNELS:
+            # Mono → stereo: duplicate the single channel
+            audio_np = np.column_stack([audio_np] * out_ch)
+
+        out_kw = {"samplerate": PIPER_SAMPLE_RATE, "channels": out_ch, "dtype": "int16"}
+        if self.output_device is not None:
+            out_kw["device"] = self.output_device
+
+        with sd.OutputStream(**out_kw) as stream:
+            stream.write(audio_np)
 
     def _speak_via_wav(self, text: str, piper_cmd: List[str]) -> None:
         """Fallback: generate WAV file and play it."""
