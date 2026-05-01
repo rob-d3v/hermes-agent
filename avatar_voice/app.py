@@ -95,6 +95,9 @@ class App(ctk.CTk):
         self.after(120, self._poll)
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
+        if "--autostart" in sys.argv:
+            self.after(2000, self._start)
+
     # ── Config I/O ────────────────────────────────────────────────────────────
     def _load_config(self) -> dict:
         if CONFIG_PATH.exists():
@@ -780,7 +783,7 @@ class App(ctk.CTk):
                                  _winreg.KEY_SET_VALUE) as k:
                 if self._startup_var.get():
                     _winreg.SetValueEx(k, "avatar_voice", 0, _winreg.REG_SZ,
-                                       f'"{pythonw}" "{app_path}"')
+                                       f'"{pythonw}" "{app_path}" --autostart')
                 else:
                     try:
                         _winreg.DeleteValue(k, "avatar_voice")
