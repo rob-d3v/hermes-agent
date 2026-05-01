@@ -1,0 +1,91 @@
+e word model: E:\backup_2026\Repositór12:26:20 [INFO] avatar_voice: Hermes Voice Pipeline started. Model=mascote  Wake word=E:\backup_2026\Repositór12:26:20 [INFO] avatar_voice: State: SLEEPING — waiting for wake word... word (mode=custom, threshold=0.74, confirm=1)...
+12:26:24 [INFO] stt_whisper: Loading faster-whisper model 'small'...
+12:26:25 [INFO] httpx: HTTP Request: GET https://huggingface.co/api/models/Systran/faster-whisper-small/revision/main "HTTP/1.1 200 OK"
+12:26:27 [INFO] stt_whisper: faster-whisper model loaded.! model=morphi score=0.789 (confirmed 1 frames)
+12:26:46 [INFO] avatar_voice: [GREETING] Tô aqui, uai! Fala o que precisa.
+12:26:46 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+[TTS] Tô aqui, uai! Fala o que precisa.
+12:26:47 [INFO] tts_piper: piper: 38912 amostras (1.76s)  speed=0.85
+12:26:47 [INFO] tts_piper: pitch aplicado: +5 semitones → 29151 amostras (1.32s)
+12:26:48 [INFO] avatar_voice: [LISTENING] Ouvindo entrada do usuário...
+12:26:55 [INFO] faster_whisper: Processing audio with duration 00:06.136
+12:26:57 [INFO] stt_whisper: Transcribed (6.1s audio, lang=pt): 'Estou fazendo um teste, tudo bem com você?'
+12:26:57 [INFO] avatar_voice: [LISTENING] Capturado: 'Estou fazendo um teste, tudo bem com você?'
+12:26:57 [INFO] avatar_voice: [PROCESSING] Enviando para o agente: 'Estou fazendo um teste, tudo bem com você?'
+12:26:58 [INFO] avatar_voice: [WAITING] Hmm, aguenta aí que tô processando.
+12:26:58 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+[TTS] Hmm, aguenta aí que tô processando.
+12:26:59 [INFO] tts_piper: piper: 51968 amostras (2.36s)  speed=0.85
+12:26:59 [INFO] tts_piper: pitch aplicado: +5 semitones → 38932 amostras (1.77s)
+12:27:05 [INFO] agent_client: Agent response (111 chars): 'É meu man! Tá bom, tá? Vai que a gente dá o play no teste aí.  Anêim pra ver se '
+12:27:05 [INFO] avatar_voice: [RESPONDING] Resposta: 'É meu man! Tá bom, tá? Vai que a gente dá o play no teste aí.  Anêim pra ver se o robô vai botar o mais alto! 😜'
+12:27:05 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+12:27:05 [INFO] tts_piper: piper: 72448 amostras (3.29s)  speed=0.85
+12:27:05 [INFO] tts_piper: pitch aplicado: +5 semitones → 54274 amostras (2.46s)
+12:27:08 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+12:27:10 [INFO] tts_piper: piper: 48896 amostras (2.22s)  speed=0.85
+12:27:10 [INFO] tts_piper: pitch aplicado: +5 semitones → 36630 amostras (1.66s)
+12:27:11 [INFO] avatar_voice: [FOLLOWUP] Ouvindo follow-up (10.0s)...
+12:27:22 [INFO] avatar_voice: [FOLLOWUP] Sem follow-up — voltando a dormir. word (mode=custom, threshold=0.74, confirm=1)...! model=morphi score=0.994 (confirmed 1 frames)
+12:27:29 [INFO] avatar_voice: [GREETING] Uai! Pode falar, tô escutando.
+12:27:29 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+[TTS] Uai! Pode falar, tô escutando.
+12:27:29 [INFO] tts_piper: piper: 43776 amostras (1.99s)  speed=0.85
+12:27:29 [INFO] tts_piper: pitch aplicado: +5 semitones → 32794 amostras (1.49s)
+12:27:31 [INFO] avatar_voice: [LISTENING] Ouvindo entrada do usuário...
+12:27:37 [INFO] faster_whisper: Processing audio with duration 00:06.266
+12:27:40 [INFO] stt_whisper: Transcribed (6.3s audio, lang=pt): 'Me fala qual é a boa do momento.'
+12:27:40 [INFO] avatar_voice: [LISTENING] Capturado: 'Me fala qual é a boa do momento.'
+12:27:40 [INFO] avatar_voice: [PROCESSING] Enviando para o agente: 'Me fala qual é a boa do momento.'
+12:27:41 [INFO] avatar_voice: [WAITING] Só um instantinho, tá?
+12:27:41 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+[TTS] Só um instantinho, tá?
+12:27:41 [INFO] tts_piper: piper: 31488 amostras (1.43s)  speed=0.85
+12:27:41 [INFO] tts_piper: pitch aplicado: +5 semitones → 23589 amostras (1.07s)
+12:27:43 [INFO] agent_client: Agent response (123 chars): 'Tâm, tá ouvindo bem o som de um carimbó.  Tá bombando a vibe da internet, vamo t'
+12:27:43 [INFO] avatar_voice: [RESPONDING] Resposta: 'Tâm, tá ouvindo bem o som de um carimbó.  Tá bombando a vibe da internet, vamo ter um bom barulho e até se divertir! Uai'
+12:27:43 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+12:27:46 [INFO] tts_piper: piper: 44288 amostras (2.01s)  speed=0.85
+12:27:46 [INFO] tts_piper: pitch aplicado: +5 semitones → 33178 amostras (1.50s)
+12:27:48 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+12:27:48 [INFO] tts_piper: piper: 89088 amostras (4.04s)  speed=0.85
+12:27:48 [INFO] tts_piper: pitch aplicado: +5 semitones → 66740 amostras (3.03s)
+12:27:51 [INFO] avatar_voice: [FOLLOWUP] Ouvindo follow-up (10.0s)...
+12:27:59 [INFO] faster_whisper: Processing audio with duration 00:07.332
+12:28:01 [INFO] stt_whisper: Transcribed (7.3s audio, lang=pt): 'Qual o seu nome?'
+12:28:01 [INFO] avatar_voice: [FOLLOWUP] Follow-up: 'Qual o seu nome?'
+12:28:01 [INFO] avatar_voice: [PROCESSING] Enviando para o agente: 'Qual o seu nome?'
+12:28:02 [INFO] avatar_voice: [WAITING] Uai, deixa eu pensar aqui...
+12:28:02 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+[TTS] Uai, deixa eu pensar aqui...
+12:28:03 [INFO] tts_piper: piper: 29184 amostras (1.32s)  speed=0.85
+12:28:03 [INFO] tts_piper: pitch aplicado: +5 semitones → 21863 amostras (0.99s)
+12:28:04 [INFO] agent_client: Agent response (90 chars): 'O meu nome é... o que? É mais fácil assim: "Eu sou o Mascote Sem Filtro!". Tá do'
+12:28:04 [INFO] avatar_voice: [RESPONDING] Resposta: 'O meu nome é... o que? É mais fácil assim: "Eu sou o Mascote Sem Filtro!". Tá doido não? 😜'
+12:28:04 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+12:28:07 [INFO] tts_piper: piper: 74496 amostras (3.38s)  speed=0.85
+12:28:07 [INFO] tts_piper: pitch aplicado: +5 semitones → 55808 amostras (2.53s)
+12:28:10 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+12:28:10 [INFO] tts_piper: piper: 19200 amostras (0.87s)  speed=0.85
+12:28:10 [INFO] tts_piper: pitch aplicado: +5 semitones → 14383 amostras (0.65s)
+12:28:11 [INFO] avatar_voice: [FOLLOWUP] Ouvindo follow-up (10.0s)...
+12:28:21 [INFO] faster_whisper: Processing audio with duration 00:08.944
+12:28:38 [INFO] stt_whisper: Transcribed (8.9s audio, lang=pt): 'Se inscreva no canal e se inscreva no canal para ver as outras coisas que eu te '
+12:28:38 [INFO] avatar_voice: [FOLLOWUP] Follow-up: 'Se inscreva no canal e se inscreva no canal para ver as outras coisas que eu te ensino no próximo vídeo!'
+12:28:38 [INFO] avatar_voice: [PROCESSING] Enviando para o agente: 'Se inscreva no canal e se inscreva no canal para ver as outras coisas que eu te '
+12:28:39 [INFO] avatar_voice: [WAITING] Uai, boa pergunta! Um instante.
+12:28:39 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+[TTS] Uai, boa pergunta! Um instante.
+12:28:40 [INFO] tts_piper: piper: 44032 amostras (2.00s)  speed=0.85
+12:28:40 [INFO] tts_piper: pitch aplicado: +5 semitones → 32986 amostras (1.50s)
+12:28:42 [INFO] agent_client: Agent response (140 chars): 'Tá, você tá ligado na parada, é meu negócio que te dou o play aqui!  Vai lá no l'
+12:28:42 [INFO] avatar_voice: [RESPONDING] Resposta: 'Tá, você tá ligado na parada, é meu negócio que te dou o play aqui!  Vai lá no link da descrição do vídeo. O que pode se'
+12:28:42 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+12:28:45 [INFO] tts_piper: piper: 74240 amostras (3.37s)  speed=0.85
+12:28:45 [INFO] tts_piper: pitch aplicado: +5 semitones → 55617 amostras (2.52s)
+12:28:48 [INFO] tts_piper: piper cmd: C:\Users\ropec\AppData\Local\Programs\Python\Python313\Scripts\piper.EXE --model E:\backup_2026\Repositórios\hermes-agent\piper_models\nanda_ptbr.onnx --output_raw --length_scale 0.85 --noise_scale 0.667 --noise_w 0.8
+12:28:48 [INFO] tts_piper: piper: 81920 amostras (3.72s)  speed=0.85
+12:28:48 [INFO] tts_piper: pitch aplicado: +5 semitones → 61370 amostras (2.78s)
+12:28:51 [INFO] avatar_voice: [FOLLOWUP] Ouvindo follow-up (10.0s)...
+12:29:01 [INFO] avatar_voice: [FOLLOWUP] Sem follow-up — voltando a dormir. word (mode=custom, threshold=0.74, confirm=1)...
+

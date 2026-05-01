@@ -80,3 +80,5 @@ NOTES.txt
 wake_word_models/morphi.onnx.data
 build/*
 dist/*
+avatar_voice/build/build/*
+avatar_voice/dist/*

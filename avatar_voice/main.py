@@ -200,7 +200,7 @@ def run_pipeline(cfg: Config, input_device: Optional[int] = None) -> None:
             agent_thread.start()
 
             # Aguarda brevemente — se LLM já respondeu, pula a mensagem de espera
-            agent_thread.join(timeout=0.45)
+            agent_thread.join(timeout=1.0)
             if agent_thread.is_alive():
                 waiting_msg = random_waiting()
                 logger.info("[WAITING] %s", waiting_msg)

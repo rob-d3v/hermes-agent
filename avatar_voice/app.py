@@ -620,7 +620,7 @@ class App(ctk.CTk):
         elif t == "transcript": self._chat_append("você",    ev.get("text",""), "user")
         elif t == "response":   self._chat_append("avatar",   ev.get("text",""), "avatar")
         elif t == "inject":     self._chat_append("enviado", ev.get("text",""), "inject")
-        elif t == "tts":        self._log_line(f"[TTS] {ev.get('text','')[:70]}")
+        elif t == "tts":        self._chat_append("avatar", ev.get("text",""), "avatar")
 
     def _set_state(self, state: str):
         color = STATE_COLOR.get(state, MUTED)
