@@ -36,6 +36,7 @@ class WakeWordConfig:
     cooldown_seconds: float = 2.0
     vad_rms_min: int = 50
     fallback_mode: Optional[str] = None  # None | "keyboard"
+    confirm_frames: int = 2  # frames consecutivos acima do threshold para confirmar (anti-falso-positivo)
 
 
 @dataclass
@@ -144,6 +145,7 @@ def load_config(config_path: Optional[str] = None) -> Config:
         cooldown_seconds=float(ww.get("cooldown_seconds", WakeWordConfig.cooldown_seconds)),
         vad_rms_min=int(ww.get("vad_rms_min", WakeWordConfig.vad_rms_min)),
         fallback_mode=ww.get("fallback_mode", WakeWordConfig.fallback_mode),
+        confirm_frames=int(ww.get("confirm_frames", WakeWordConfig.confirm_frames)),
     )
 
     # --- tts ---

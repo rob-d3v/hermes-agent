@@ -65,6 +65,7 @@ def _build_components(cfg: Config, input_device: Optional[int]):
         fallback_mode=cfg.wake_word.fallback_mode,
         input_device=device_override,
         show_scores=cfg.logging.show_scores,
+        confirm_frames=cfg.wake_word.confirm_frames,
     )
 
     tts = PiperTTS(
@@ -188,24 +189,27 @@ def run_pipeline(cfg: Config, input_device: Optional[int] = None) -> None:
 
         # ── WAITING ───────────────────────────────────────────────────
         elif state == State.WAITING:
-            waiting_msg = random_waiting()
-            logger.info("[WAITING] %s", waiting_msg)
-            dashboard.publish("tts", text=waiting_msg)
             dashboard.publish("state", state="PROCESSING")
             logger.info("[PROCESSING] Enviando para o agente: %r", _pending_transcript[:80])
 
-            # Dispara o agent em background imediatamente
+            # Dispara o agent imediatamente, antes de qualquer TTS
             _result: list = [None]
             def _call_agent():
                 _result[0] = agent.chat(_pending_transcript)
             agent_thread = threading.Thread(target=_call_agent, daemon=True)
             agent_thread.start()
 
-            # TTS em foreground — usuário ouve "Um instante" antes da resposta
-            tts.speak(waiting_msg)
-
-            # Aguarda o agent terminar (já estava processando enquanto TTS tocava)
-            agent_thread.join(timeout=cfg.agent.timeout + 5)
+            # Aguarda brevemente — se LLM já respondeu, pula a mensagem de espera
+            agent_thread.join(timeout=0.45)
+            if agent_thread.is_alive():
+                waiting_msg = random_waiting()
+                logger.info("[WAITING] %s", waiting_msg)
+                dashboard.publish("tts", text=waiting_msg)
+                tts.speak(waiting_msg)
+                # Aguarda o agent terminar (já estava processando enquanto TTS tocava)
+                agent_thread.join(timeout=cfg.agent.timeout + 5)
+            else:
+                logger.info("[WAITING] LLM respondeu rápido — mensagem de espera ignorada.")
 
             if shutdown:
                 break

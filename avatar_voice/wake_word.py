@@ -28,6 +28,7 @@ class WakeWordDetector:
         fallback_mode: Optional[str] = None,
         input_device: Optional[int] = None,
         show_scores: bool = False,
+        confirm_frames: int = 2,
     ) -> None:
         self.model_path = model_path
         self.threshold = threshold
@@ -35,6 +36,7 @@ class WakeWordDetector:
         self.vad_rms_min = vad_rms_min
         self.input_device = input_device
         self.show_scores = show_scores
+        self.confirm_frames = confirm_frames  # frames consecutivos acima do threshold para confirmar
         self._stop_event = threading.Event()
 
         # Determine mode
@@ -152,7 +154,9 @@ class WakeWordDetector:
 
         stream = pa.open(**stream_kwargs)
         last_detection = 0.0
-        logger.info("Listening for wake word (mode=%s, threshold=%.2f)...", self.mode, self.threshold)
+        consec: dict = {}  # contador de frames consecutivos acima do threshold por modelo
+        logger.info("Listening for wake word (mode=%s, threshold=%.2f, confirm=%d)...",
+                    self.mode, self.threshold, self.confirm_frames)
 
         try:
             while not self._stop_event.is_set():
@@ -165,9 +169,10 @@ class WakeWordDetector:
 
                 audio_chunk = np.frombuffer(raw, dtype=np.int16)
 
-                # VAD gate
+                # VAD gate — zera contador se silêncio
                 rms = int(np.sqrt(np.mean(audio_chunk.astype(np.float64) ** 2)))
                 if rms < self.vad_rms_min:
+                    consec.clear()
                     continue
 
                 # Run prediction
@@ -179,23 +184,30 @@ class WakeWordDetector:
                         if preds:
                             logger.info("WW [%s]: %.3f", model_name, preds[-1])
 
-                # Check threshold
+                # Cooldown guard
                 now = time.monotonic()
                 if now - last_detection < self.cooldown_seconds:
+                    consec.clear()
                     continue
 
+                # Confirmação por frames consecutivos acima do threshold
                 for model_name, preds in scores.items():
                     if not preds:
+                        consec[model_name] = 0
                         continue
-                    # Usa max das últimas 3 frames — captura picos que já passaram
-                    recent_max = max(list(preds)[-3:])
-                    if recent_max >= self.threshold:
+                    score = preds[-1]
+                    if score >= self.threshold:
+                        consec[model_name] = consec.get(model_name, 0) + 1
+                    else:
+                        consec[model_name] = 0
+
+                    if consec.get(model_name, 0) >= self.confirm_frames:
                         logger.info(
-                            "Wake word detected! model=%s score=%.3f",
-                            model_name,
-                            recent_max,
+                            "Wake word detected! model=%s score=%.3f (confirmed %d frames)",
+                            model_name, score, self.confirm_frames,
                         )
                         last_detection = now
+                        consec.clear()
                         self._oww.prediction_buffer.clear()
                         return
 
