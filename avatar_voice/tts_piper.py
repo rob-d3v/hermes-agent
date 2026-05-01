@@ -21,6 +21,36 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Formas dialetais goianas que o espeak-ng não reconhece → substitui antes do TTS.
+# O texto escrito no chat permanece inalterado; só o áudio usa a forma padrão.
+_DIALECT_MAP = [
+    # Pronomes goianos
+    (r'\bocê\b',    'você'),
+    (r'\bcê\b',     'você'),
+    (r'\bprocê\b',  'pra você'),
+    (r'\bprocês\b', 'pra vocês'),
+    # Interjeições / marcadores
+    (r'\banêim\b',  'aí'),
+    (r'\bsô\b',     'só'),
+    (r'\bmô\b',     'meu'),
+    # Formas coloquiais goianas
+    (r'\bvéi\b',    'velho'),
+    (r'\bvéio\b',   'velho'),
+    (r'\bvéia\b',   'velha'),
+    (r'\bnóis\b',   'nós'),
+    (r'\bmemo\b',   'mesmo'),
+    (r'\bmermo\b',  'mesmo'),
+    (r'\bcumé\b',   'como é'),
+    (r'\bdum\b',    'de um'),
+    (r'\bduma\b',   'de uma'),
+    (r'\bprum\b',   'para um'),
+    (r'\bpruma\b',  'para uma'),
+    # Catch-all: remove circunflexo de ê e ô — espeak-ng pt-BR pronuncia
+    # "voce", "tres", "cafe", "avo" corretamente sem o acento circunflexo.
+    (r'ê',          'e'),
+    (r'ô',          'o'),
+]
+
 # No Windows, esconde a janela de console dos subprocessos
 _POPEN_FLAGS: dict = (
     {"creationflags": subprocess.CREATE_NO_WINDOW}
@@ -81,6 +111,11 @@ class PiperTTS:
     @staticmethod
     def clean_text(text: str) -> str:
         """Remove emojis, markdown symbols and non-speakable chars before TTS."""
+        # Normaliza formas dialetais que o espeak-ng não reconhece
+        cleaned = text
+        for pattern, replacement in _DIALECT_MAP:
+            cleaned = re.sub(pattern, replacement, cleaned, flags=re.IGNORECASE)
+
         # Strip emoji and pictograph Unicode blocks
         cleaned = re.sub(
             r"[\U0001F300-\U0001FAFF"   # misc symbols, emoticons, transport, etc.
@@ -90,7 +125,7 @@ class PiperTTS:
             r"\u200d"                   # zero-width joiner
             r"]+",
             " ",
-            text,
+            cleaned,
         )
         # Remove markdown bullet/header lines (lines starting with #, >, -, *)
         cleaned = re.sub(r"(?m)^[#>*\-]+\s*", "", cleaned)
