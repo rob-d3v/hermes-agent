@@ -155,7 +155,7 @@ class WhisperSTT:
                         break
                 else:
                     # No speech yet, check max_wait
-                    if elapsed >= min(timeout, 5.0) and speech_start is None:
+                    if elapsed >= timeout and speech_start is None:
                         logger.debug("No speech in %.1fs, aborting", elapsed)
                         break
 
