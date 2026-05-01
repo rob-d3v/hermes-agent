@@ -194,8 +194,8 @@ class PiperTTS:
             return
 
         piper_cmd = self._build_piper_cmd()
+        logger.info("piper cmd: %s", " ".join(piper_cmd))
 
-        # Streaming sempre preferido — suporta pitch via sox em modo pipe
         if self._speak_via_stream(text, piper_cmd):
             return
         if self._speak_via_sounddevice(text, piper_cmd):
@@ -203,38 +203,59 @@ class PiperTTS:
         self._speak_via_wav(text, piper_cmd)
 
     def _speak_via_stream(self, text: str, piper_cmd: List[str]) -> bool:
-        """Streaming: piper (→ sox) → sd.OutputStream. Latência mínima."""
+        """Buffer piper PCM → optional numpy pitch shift → sd.OutputStream."""
         try:
             import sounddevice as sd
             import numpy as np
         except (ImportError, OSError):
             return False
 
-        CHUNK = 2048  # bytes (~46ms @ 22050Hz int16 mono)
         piper_proc = None
-        audio_source = None
         try:
-            # Use pre-warmed process if alive, otherwise spawn fresh
-            piper_proc = self._take_warm_proc()
-            if piper_proc is None or piper_proc.poll() is not None:
+            # Prefer warm proc; fall back to fresh with stderr captured for diagnostics
+            warm = self._take_warm_proc()
+            if warm is not None and warm.poll() is None:
+                piper_proc = warm
+                stdout_data, _ = piper_proc.communicate(
+                    input=text.encode("utf-8") + b"\n", timeout=30
+                )
+                stderr_text = ""
+            else:
                 piper_proc = subprocess.Popen(
                     piper_cmd,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
                 )
+                stdout_data, stderr_raw = piper_proc.communicate(
+                    input=text.encode("utf-8") + b"\n", timeout=30
+                )
+                stderr_text = stderr_raw.decode(errors="replace") if stderr_raw else ""
 
-            # Pitch shift via sox pipe (streaming, no full-buffer wait)
-            if self.pitch_semitones != 0 and shutil.which("sox"):
-                _, audio_source = self._add_sox_pipe(piper_proc)
-            else:
-                audio_source = piper_proc
+            if stderr_text:
+                for line in stderr_text.splitlines():
+                    if line.strip():
+                        logger.info("piper stderr: %s", line.strip())
 
-            try:
-                piper_proc.stdin.write(text.encode("utf-8"))
-                piper_proc.stdin.close()
-            except (BrokenPipeError, OSError):
-                pass
+            if not stdout_data:
+                logger.warning("piper produziu 0 bytes (returncode=%s)", piper_proc.returncode)
+                return False
+
+            audio_np = np.frombuffer(stdout_data, dtype=np.int16)
+            logger.info("piper: %d amostras (%.2fs)  speed=%.2f",
+                        len(audio_np), len(audio_np) / PIPER_SAMPLE_RATE, self.length_scale)
+
+            # Pitch shift via numpy (sem dependência de sox)
+            if self.pitch_semitones != 0:
+                audio_np = self._pitch_shift_numpy(audio_np, self.pitch_semitones)
+                logger.info("pitch aplicado: %+d semitones → %d amostras (%.2fs)",
+                            self.pitch_semitones, len(audio_np),
+                            len(audio_np) / PIPER_SAMPLE_RATE)
+
+            if self.volume != 1.0:
+                audio_np = np.clip(
+                    audio_np.astype(np.float32) * self.volume, -32768, 32767
+                ).astype(np.int16)
 
             out_kw = {"samplerate": PIPER_SAMPLE_RATE, "channels": PIPER_CHANNELS,
                       "dtype": "int16"}
@@ -242,22 +263,12 @@ class PiperTTS:
                 out_kw["device"] = self.output_device
 
             with sd.OutputStream(**out_kw) as stream:
-                while True:
-                    raw = audio_source.stdout.read(CHUNK)
-                    if not raw:
-                        break
-                    chunk = np.frombuffer(raw, dtype=np.int16).copy()
-                    if self.volume != 1.0:
-                        chunk = np.clip(
-                            chunk.astype(np.float32) * self.volume, -32768, 32767
-                        ).astype(np.int16)
-                    stream.write(chunk)
+                stream.write(audio_np)
 
-            piper_proc.wait(timeout=5)
             return True
 
         except Exception as e:
-            logger.debug("Stream TTS falhou: %s", e)
+            logger.warning("Stream TTS falhou: %s", e)
             if piper_proc:
                 try:
                     piper_proc.kill()
@@ -291,7 +302,7 @@ class PiperTTS:
 
             # Send text to piper
             try:
-                piper_proc.stdin.write(text.encode("utf-8"))
+                piper_proc.stdin.write(text.encode("utf-8") + b"\n")
                 piper_proc.stdin.close()
             except (BrokenPipeError, OSError):
                 pass
@@ -299,6 +310,11 @@ class PiperTTS:
             # Read all raw PCM
             raw_audio = audio_source.stdout.read()
 
+            if audio_source is not piper_proc:
+                try:
+                    audio_source.wait(timeout=15)
+                except Exception:
+                    pass
             piper_proc.wait(timeout=15)
 
             if not raw_audio:
@@ -354,13 +370,20 @@ class PiperTTS:
 
     @staticmethod
     def _pitch_shift_numpy(audio: "np.ndarray", semitones: float) -> "np.ndarray":
-        """Pitch shift via resampling. No sox needed; slight duration change."""
+        """Pitch shift via resampling (changes pitch + duration proportionally).
+        Uses scipy if available, falls back to numpy linear interpolation."""
         try:
             import numpy as np
-            from scipy.signal import resample
             ratio = 2.0 ** (semitones / 12.0)
             new_len = max(1, int(len(audio) / ratio))
-            shifted = resample(audio.astype(np.float32), new_len)
+            try:
+                from scipy.signal import resample
+                shifted = resample(audio.astype(np.float32), new_len)
+            except ImportError:
+                # Linear interpolation fallback — no scipy needed
+                indices = np.linspace(0, len(audio) - 1, new_len)
+                shifted = np.interp(indices, np.arange(len(audio)),
+                                    audio.astype(np.float32))
             return np.clip(shifted, -32768, 32767).astype(np.int16)
         except Exception:
             return audio
@@ -381,7 +404,7 @@ class PiperTTS:
                 stderr=subprocess.DEVNULL,
             )
             try:
-                piper_proc.stdin.write(text.encode("utf-8"))
+                piper_proc.stdin.write(text.encode("utf-8") + b"\n")
                 piper_proc.stdin.close()
             except (BrokenPipeError, OSError):
                 pass

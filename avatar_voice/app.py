@@ -230,6 +230,22 @@ class App(ctk.CTk):
         self._pitch_lbl, self._pitch_sl = self._slider(r2, "Pitch", -6, 6, 12, 0,
                                                          fmt=lambda v: f"{int(v):+d}", pad=12)
 
+        r3 = self._hrow(s3, label="Test")
+        self._tts_test_e = ctk.CTkEntry(
+            r3, font=("Courier New", 10), height=28, corner_radius=6,
+            fg_color=OVERLAY, border_color=MUTED, text_color=TEXT,
+            placeholder_text="Frase para testar o Piper…",
+        )
+        self._tts_test_e.pack(side="left", fill="x", expand=True, padx=(4, 4))
+        self._tts_test_e.insert(0, "Uai, ocê tá me ouvindo bem, sô?")
+        self._tts_btn = ctk.CTkButton(
+            r3, text="▶", width=32, height=28, corner_radius=6,
+            font=("Courier New", 11, "bold"),
+            fg_color=TEAL, hover_color="#7ecfc3", text_color="#1e1e2e",
+            command=self._tts_test,
+        )
+        self._tts_btn.pack(side="left")
+
         # Wake Word
         s4 = self._card(scroll, "WAKE WORD")
         r = self._hrow(s4, label="Model")
@@ -680,6 +696,57 @@ class App(ctk.CTk):
                 mf_path.unlink()
             except Exception:
                 pass
+
+    def _tts_test(self):
+        text = self._tts_test_e.get().strip()
+        if not text:
+            return
+        self._tts_btn.configure(state="disabled", text="…")
+        self._tabs.set("Monitor")
+
+        cfg = self._cfg.get("tts", {})
+        model_path   = self._tts_e.get().strip() or cfg.get("model_path", "../piper_models/nanda_ptbr.onnx")
+        length_scale = round(self._speed_sl.get(), 2)
+        pitch        = int(self._pitch_sl.get())
+        noise_scale  = cfg.get("noise_scale", 0.667)
+        noise_w      = cfg.get("noise_w", 0.8)
+        piper_bin    = cfg.get("piper_binary", "piper")
+
+        audio_cfg  = self._cfg.get("audio", {})
+        out_device = audio_cfg.get("output_device")
+
+        def run():
+            try:
+                import shutil
+                sys.path.insert(0, str(Path(__file__).parent))
+                from tts_piper import PiperTTS
+
+                # Resolve piper binary path
+                resolved_bin = shutil.which(piper_bin) or piper_bin
+                sox_found = shutil.which("sox")
+                self._evq.put(("log", f"[TTS test] piper={resolved_bin}"))
+                self._evq.put(("log", f"[TTS test] model={model_path}"))
+                self._evq.put(("log", f"[TTS test] speed(length_scale)={length_scale}  pitch={pitch:+d}st"))
+                self._evq.put(("log", f"[TTS test] sox={'sim → ' + sox_found if sox_found else 'NÃO encontrado (pitch usa numpy)'}"))
+                self._evq.put(("log", f"[TTS test] texto → {text[:70]}"))
+
+                tts = PiperTTS(
+                    piper_binary=piper_bin,
+                    model_path=model_path,
+                    length_scale=length_scale,
+                    noise_scale=noise_scale,
+                    noise_w=noise_w,
+                    pitch_semitones=pitch,
+                    output_device=out_device,
+                )
+                tts.speak(text)
+                self._evq.put(("log", "[TTS test] concluído."))
+            except Exception as exc:
+                self._evq.put(("log", f"[TTS test] erro: {exc}"))
+            finally:
+                self.after(0, lambda: self._tts_btn.configure(state="normal", text="▶"))
+
+        threading.Thread(target=run, daemon=True).start()
 
     def _restore_device(self, combo: ctk.CTkComboBox, saved):
         if saved is None:
