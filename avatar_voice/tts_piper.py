@@ -164,12 +164,66 @@ class PiperTTS:
 
         piper_cmd = self._build_piper_cmd()
 
-        # Try sounddevice streaming (lowest latency)
+        # Pitch zero → streaming direto (menor latência possível)
+        # Pitch ativo → buffer completo necessário para sox/numpy sem artefatos
+        if self.pitch_semitones == 0:
+            if self._speak_via_stream(text, piper_cmd):
+                return
         if self._speak_via_sounddevice(text, piper_cmd):
             return
-
-        # Fallback: write WAV and play via audio_player
         self._speak_via_wav(text, piper_cmd)
+
+    def _speak_via_stream(self, text: str, piper_cmd: List[str]) -> bool:
+        """Streaming chunk-a-chunk: piper → sd.OutputStream. Latência mínima. Apenas pitch=0."""
+        try:
+            import sounddevice as sd
+            import numpy as np
+        except (ImportError, OSError):
+            return False
+
+        CHUNK = 4096  # bytes (~93ms a 22050Hz int16 mono)
+        piper_proc = None
+        try:
+            piper_proc = subprocess.Popen(
+                piper_cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+            )
+            try:
+                piper_proc.stdin.write(text.encode("utf-8"))
+                piper_proc.stdin.close()
+            except (BrokenPipeError, OSError):
+                pass
+
+            out_kw = {"samplerate": PIPER_SAMPLE_RATE, "channels": PIPER_CHANNELS,
+                      "dtype": "int16"}
+            if self.output_device is not None:
+                out_kw["device"] = self.output_device
+
+            with sd.OutputStream(**out_kw) as stream:
+                while True:
+                    raw = piper_proc.stdout.read(CHUNK)
+                    if not raw:
+                        break
+                    chunk = np.frombuffer(raw, dtype=np.int16).copy()
+                    if self.volume != 1.0:
+                        chunk = np.clip(
+                            chunk.astype(np.float32) * self.volume, -32768, 32767
+                        ).astype(np.int16)
+                    stream.write(chunk)
+
+            piper_proc.wait(timeout=5)
+            return True
+
+        except Exception as e:
+            logger.debug("Stream TTS falhou: %s", e)
+            if piper_proc:
+                try:
+                    piper_proc.kill()
+                except Exception:
+                    pass
+            return False
 
     def _speak_via_sounddevice(self, text: str, piper_cmd: List[str]) -> bool:
         """Stream raw PCM from piper → sounddevice. Returns True on success."""
@@ -222,18 +276,13 @@ class PiperTTS:
                     audio_np.astype(np.float32) * self.volume, -32768, 32767
                 ).astype(np.int16)
 
-            kwargs = {"samplerate": PIPER_SAMPLE_RATE}
+            out_kw = {"samplerate": PIPER_SAMPLE_RATE, "channels": PIPER_CHANNELS,
+                      "dtype": "int16"}
             if self.output_device is not None:
-                kwargs["device"] = self.output_device
+                out_kw["device"] = self.output_device
 
-            sd.play(audio_np, **kwargs)
-            duration = len(audio_np) / PIPER_SAMPLE_RATE
-            deadline = time.monotonic() + duration + 3.0
-            while sd.get_stream() and sd.get_stream().active:
-                if time.monotonic() > deadline:
-                    break
-                time.sleep(0.01)
-            sd.stop()
+            with sd.OutputStream(**out_kw) as stream:
+                stream.write(audio_np)
             return True
 
         except subprocess.TimeoutExpired:

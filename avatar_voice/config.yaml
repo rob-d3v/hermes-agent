@@ -24,14 +24,14 @@ tts:
 stt:
   model: small
   language: pt
-  device: cuda
+  device: cpu
   silence_threshold_rms: 200
   silence_duration_seconds: 2.5
   followup_timeout_seconds: 10.0
   max_session_seconds: 20.0
 audio:
   input_device: 1
-  output_device: null
+  output_device: 10
   sample_rate: 16000
 logging:
   level: INFO

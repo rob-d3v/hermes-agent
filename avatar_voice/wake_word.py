@@ -185,14 +185,17 @@ class WakeWordDetector:
                     continue
 
                 for model_name, preds in scores.items():
-                    if preds and preds[-1] >= self.threshold:
+                    if not preds:
+                        continue
+                    # Usa max das últimas 3 frames — captura picos que já passaram
+                    recent_max = max(list(preds)[-3:])
+                    if recent_max >= self.threshold:
                         logger.info(
                             "Wake word detected! model=%s score=%.3f",
                             model_name,
-                            preds[-1],
+                            recent_max,
                         )
                         last_detection = now
-                        # Clear buffer to avoid re-triggering
                         self._oww.prediction_buffer.clear()
                         return
 
