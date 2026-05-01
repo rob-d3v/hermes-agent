@@ -49,6 +49,8 @@ class PiperTTS:
         self.chunk_max_chars = chunk_max_chars
         self.output_device = output_device
         self._lock = threading.Lock()
+        self._warm_proc = None
+        self._warm_lock = threading.Lock()
 
         # Resolve binary
         resolved = shutil.which(piper_binary)
@@ -61,6 +63,9 @@ class PiperTTS:
 
         if not os.path.isfile(model_path):
             logger.warning("Piper model not found: %s", model_path)
+
+        # Pre-warm: launch piper now so model is loaded before first TTS call
+        threading.Thread(target=self._start_warm_proc, daemon=True).start()
 
     # ------------------------------------------------------------------
     # Public API
@@ -146,6 +151,32 @@ class PiperTTS:
     # Internal
     # ------------------------------------------------------------------
 
+    def _start_warm_proc(self) -> None:
+        """Launch a piper process in background so the ONNX model is pre-loaded."""
+        if not os.path.isfile(self.piper_binary) and not shutil.which(self.piper_binary):
+            return
+        try:
+            cmd = self._build_piper_cmd()
+            proc = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+            )
+            with self._warm_lock:
+                self._warm_proc = proc
+            logger.debug("Piper warm process ready (pid=%d)", proc.pid)
+        except Exception as e:
+            logger.debug("Piper warm process failed: %s", e)
+
+    def _take_warm_proc(self):
+        """Return the pre-warmed piper process (or None) and launch the next one."""
+        with self._warm_lock:
+            proc = self._warm_proc
+            self._warm_proc = None
+        threading.Thread(target=self._start_warm_proc, daemon=True).start()
+        return proc
+
     def _build_piper_cmd(self) -> List[str]:
         cmd = [
             self.piper_binary,
@@ -164,32 +195,41 @@ class PiperTTS:
 
         piper_cmd = self._build_piper_cmd()
 
-        # Pitch zero → streaming direto (menor latência possível)
-        # Pitch ativo → buffer completo necessário para sox/numpy sem artefatos
-        if self.pitch_semitones == 0:
-            if self._speak_via_stream(text, piper_cmd):
-                return
+        # Streaming sempre preferido — suporta pitch via sox em modo pipe
+        if self._speak_via_stream(text, piper_cmd):
+            return
         if self._speak_via_sounddevice(text, piper_cmd):
             return
         self._speak_via_wav(text, piper_cmd)
 
     def _speak_via_stream(self, text: str, piper_cmd: List[str]) -> bool:
-        """Streaming chunk-a-chunk: piper → sd.OutputStream. Latência mínima. Apenas pitch=0."""
+        """Streaming: piper (→ sox) → sd.OutputStream. Latência mínima."""
         try:
             import sounddevice as sd
             import numpy as np
         except (ImportError, OSError):
             return False
 
-        CHUNK = 4096  # bytes (~93ms a 22050Hz int16 mono)
+        CHUNK = 2048  # bytes (~46ms @ 22050Hz int16 mono)
         piper_proc = None
+        audio_source = None
         try:
-            piper_proc = subprocess.Popen(
-                piper_cmd,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-            )
+            # Use pre-warmed process if alive, otherwise spawn fresh
+            piper_proc = self._take_warm_proc()
+            if piper_proc is None or piper_proc.poll() is not None:
+                piper_proc = subprocess.Popen(
+                    piper_cmd,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                )
+
+            # Pitch shift via sox pipe (streaming, no full-buffer wait)
+            if self.pitch_semitones != 0 and shutil.which("sox"):
+                _, audio_source = self._add_sox_pipe(piper_proc)
+            else:
+                audio_source = piper_proc
+
             try:
                 piper_proc.stdin.write(text.encode("utf-8"))
                 piper_proc.stdin.close()
@@ -203,7 +243,7 @@ class PiperTTS:
 
             with sd.OutputStream(**out_kw) as stream:
                 while True:
-                    raw = piper_proc.stdout.read(CHUNK)
+                    raw = audio_source.stdout.read(CHUNK)
                     if not raw:
                         break
                     chunk = np.frombuffer(raw, dtype=np.int16).copy()
