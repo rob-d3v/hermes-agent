@@ -143,7 +143,7 @@ es.onmessage = (e) => {
   } else if (ev.type === 'response') {
     addEntry('entry-assistant', 'avatar', ev.text);
   } else if (ev.type === 'tts') {
-    addEntry('entry-tts', 'tts', ev.text);
+    addEntry('entry-assistant', 'avatar', ev.text);
   } else if (ev.type === 'inject') {
     addEntry('entry-user', 'injetado via dashboard', ev.text);
   }
