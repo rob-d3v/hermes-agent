@@ -15,10 +15,10 @@ wake_word:
 tts:
   piper_binary: piper
   model_path: ../piper_models/nanda_ptbr.onnx
-  length_scale: 0.85
+  length_scale: 0.75
   noise_scale: 0.667
   noise_w: 0.8
-  pitch_semitones: 3
+  pitch_semitones: 5
   volume: 1.0
   chunk_max_chars: 80
 stt:
@@ -26,7 +26,7 @@ stt:
   language: pt
   device: cuda
   silence_threshold_rms: 200
-  silence_duration_seconds: 1.5
+  silence_duration_seconds: 2.5
   followup_timeout_seconds: 5.0
   max_session_seconds: 20.0
 audio:

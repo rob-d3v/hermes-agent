@@ -9,6 +9,7 @@ import logging
 import os
 import signal
 import sys
+import threading
 import time
 
 # Force UTF-8 output on Windows (mascote uses emojis and accented chars)
@@ -112,6 +113,9 @@ def run_pipeline(cfg: Config, input_device: Optional[int] = None) -> None:
 
     wake, tts, stt, agent = _build_components(cfg, input_device)
 
+    # Pré-aquece o Whisper em background — sem bloquear a wake word
+    threading.Thread(target=stt._load_model, daemon=True, name="whisper-warmup").start()
+
     state = State.SLEEPING
     shutdown = False
     _pending_transcript: str = ""
@@ -187,23 +191,27 @@ def run_pipeline(cfg: Config, input_device: Optional[int] = None) -> None:
             waiting_msg = random_waiting()
             logger.info("[WAITING] %s", waiting_msg)
             dashboard.publish("tts", text=waiting_msg)
-
-            # Start TTS in background thread while we call the agent
-            tts_thread = tts.speak_async(waiting_msg)
-
-            # Call agent while TTS plays
-            logger.info("[PROCESSING] Enviando para o agente: %r", _pending_transcript[:80])
             dashboard.publish("state", state="PROCESSING")
-            response = agent.chat(_pending_transcript)
+            logger.info("[PROCESSING] Enviando para o agente: %r", _pending_transcript[:80])
 
-            # Wait for waiting TTS to finish before playing response
-            tts_thread.join(timeout=15)
+            # Dispara o agent em background imediatamente
+            _result: list = [None]
+            def _call_agent():
+                _result[0] = agent.chat(_pending_transcript)
+            agent_thread = threading.Thread(target=_call_agent, daemon=True)
+            agent_thread.start()
+
+            # TTS em foreground — usuário ouve "Um instante" antes da resposta
+            tts.speak(waiting_msg)
+
+            # Aguarda o agent terminar (já estava processando enquanto TTS tocava)
+            agent_thread.join(timeout=cfg.agent.timeout + 5)
 
             if shutdown:
                 break
 
             state = _set_state(State.RESPONDING)
-            _pending_response = response
+            _pending_response = _result[0] or ""
 
         # ── RESPONDING ────────────────────────────────────────────────
         elif state == State.RESPONDING:

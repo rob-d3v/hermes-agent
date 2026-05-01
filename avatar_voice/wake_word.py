@@ -50,6 +50,7 @@ class WakeWordDetector:
             )
             self.mode = "keyboard"
 
+        self._pa = None  # PyAudio instance, criado uma vez e reutilizado
         if self.mode != "keyboard":
             self._init_oww()
 
@@ -136,7 +137,9 @@ class WakeWordDetector:
             self._wait_keyboard()
             return
 
-        pa = pyaudio.PyAudio()
+        if self._pa is None:
+            self._pa = pyaudio.PyAudio()
+        pa = self._pa
         stream_kwargs = {
             "format": pyaudio.paInt16,
             "channels": 1,
@@ -196,7 +199,7 @@ class WakeWordDetector:
         finally:
             stream.stop_stream()
             stream.close()
-            pa.terminate()
+            # pa é reutilizado entre chamadas — não chamar pa.terminate()
 
         if self._stop_event.is_set():
             raise KeyboardInterrupt
