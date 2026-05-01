@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -19,6 +20,12 @@ import wave
 from typing import List, Optional
 
 logger = logging.getLogger(__name__)
+
+# No Windows, esconde a janela de console dos subprocessos
+_POPEN_FLAGS: dict = (
+    {"creationflags": subprocess.CREATE_NO_WINDOW}
+    if sys.platform == "win32" else {}
+)
 
 # Piper raw output spec (validated against nanda_ptbr.onnx.json)
 PIPER_SAMPLE_RATE = 22050
@@ -162,6 +169,7 @@ class PiperTTS:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
+                **_POPEN_FLAGS,
             )
             with self._warm_lock:
                 self._warm_proc = proc
@@ -226,6 +234,7 @@ class PiperTTS:
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
+                    **_POPEN_FLAGS,
                 )
                 stdout_data, stderr_raw = piper_proc.communicate(
                     input=text.encode("utf-8") + b"\n", timeout=30
@@ -290,6 +299,7 @@ class PiperTTS:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
+                **_POPEN_FLAGS,
             )
 
             # If sox pitch adjustment requested, pipe through sox
@@ -364,6 +374,7 @@ class PiperTTS:
             stdin=piper_proc.stdout,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
+            **_POPEN_FLAGS,
         )
         piper_proc.stdout.close()
         return piper_proc, sox_proc
@@ -402,6 +413,7 @@ class PiperTTS:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
+                **_POPEN_FLAGS,
             )
             try:
                 piper_proc.stdin.write(text.encode("utf-8") + b"\n")
