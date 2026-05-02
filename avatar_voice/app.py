@@ -25,6 +25,7 @@ import requests
 import yaml
 
 # -- Tema (Catppuccin Mocha) ---------------------------------------------------
+ctk.deactivate_automatic_dpi_awareness()
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
@@ -95,8 +96,8 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Avatar Voice")
-        self.geometry("780x820")
-        self.minsize(680, 640)
+        self.geometry("780x700")
+        self.minsize(680, 560)
         self.configure(fg_color=SURFACE)
 
         # Window icon
