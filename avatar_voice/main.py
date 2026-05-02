@@ -99,6 +99,7 @@ def _build_components(cfg: Config, input_device: Optional[int]):
         history_turns=cfg.agent.history_turns,
         history_reset_minutes=cfg.agent.history_reset_minutes,
         timeout=cfg.agent.timeout,
+        system_prompt=cfg.agent.system_prompt,
     )
 
     return wake, tts, stt, agent

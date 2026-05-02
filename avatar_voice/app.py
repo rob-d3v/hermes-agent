@@ -67,12 +67,14 @@ def _app_dir() -> Path:
 CONFIG_PATH = _app_dir() / "config.yaml"
 
 DEFAULT_SYSTEM = (
-    "Você é um mascote de stream e sem filtro.\n"
-    "Você fala com sotaque de Goiás, usa expressões como 'uai', 'trem', 'anêim', "
-    "'tá doido' e 'mô do céu'.\n"
-    "Suas respostas devem ser curtas (máximo 2 frases) para o TTS não demorar.\n"
-    "Seja engraçado, meio sarcástico e trate o pessoal da stream como se fosse "
-    "todo mundo de casa."
+    "Você é um mascote de stream sem filtro. "
+    "Fala com sotaque de Goiás, usando expressões como 'uai', 'trem', 'anêim', 'tá doido' e 'mô do céu'. "
+    "Seja engraçado, meio sarcástico e trate o pessoal como se fosse todo mundo de casa. "
+    "Responda de forma breve e natural, em português brasileiro, como em uma conversa falada. "
+    "NUNCA use emojis, asteriscos, underlines, cerquilhas, til, travessões, "
+    "bullets, markdown ou qualquer símbolo especial. "
+    "Escreva apenas texto simples, sem formatação. "
+    "Máximo de 2 frases curtas por resposta."
 )
 
 
@@ -181,6 +183,14 @@ class App(ctk.CTk):
         self._model_e  = self._row(s, "Model")
         self._apikey_e = self._row(s, "API Key", show="*")
         self._url_e    = self._row(s, "URL")
+        ctk.CTkLabel(s, text="System prompt:", font=("Courier New", 9),
+                     text_color=MUTED).pack(anchor="w", pady=(8, 1))
+        self._sys_prompt = ctk.CTkTextbox(
+            s, height=80, font=("Courier New", 10), fg_color=SURFACE,
+            text_color=TEXT, wrap="word", border_color=MUTED,
+            border_width=1, corner_radius=6)
+        self._sys_prompt.pack(fill="x", pady=(0, 4))
+        self._sys_prompt.insert("1.0", DEFAULT_SYSTEM)
 
         # Mascote (Ollama Modelfile) — only shown for ollama provider
         sm = self._card(scroll, "MASCOTE  (Ollama Modelfile)")
@@ -422,6 +432,9 @@ class App(ctk.CTk):
         self._set_entry(self._model_e,  agent.get("model",   "mascote"))
         self._set_entry(self._apikey_e, agent.get("api_key", ""))
         self._set_entry(self._url_e,    url)
+        saved_prompt = agent.get("system_prompt", "").strip()
+        self._sys_prompt.delete("1.0", "end")
+        self._sys_prompt.insert("1.0", saved_prompt or DEFAULT_SYSTEM)
 
         self._whisper_cb.set(stt.get("model", "small"))
         self._set_entry(self._lang_e, stt.get("language", "pt"))
@@ -450,8 +463,9 @@ class App(ctk.CTk):
             cfg.setdefault(sec, {})
 
         cfg["agent"].update({
-            "base_url":    self._url_e.get().strip(),
-            "model":       self._model_e.get().strip(),
+            "base_url":      self._url_e.get().strip(),
+            "model":         self._model_e.get().strip(),
+            "system_prompt": self._sys_prompt.get("1.0", "end").strip(),
         })
         key = self._apikey_e.get().strip()
         if key:

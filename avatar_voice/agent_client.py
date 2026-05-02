@@ -11,7 +11,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = (
+_DEFAULT_SYSTEM_PROMPT = (
     "Você é um mascote de stream sem filtro. "
     "Fala com sotaque de Goiás, usando expressões como 'uai', 'trem', 'anêim', 'tá doido' e 'mô do céu'. "
     "Seja engraçado, meio sarcástico e trate o pessoal como se fosse todo mundo de casa. "
@@ -34,6 +34,7 @@ class AgentClient:
         history_turns: int = 6,
         history_reset_minutes: int = 10,
         timeout: int = 240,
+        system_prompt: str = "",
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -43,6 +44,7 @@ class AgentClient:
         self.history_turns = history_turns
         self.history_reset_minutes = history_reset_minutes
         self.timeout = timeout
+        self.system_prompt = system_prompt.strip() or _DEFAULT_SYSTEM_PROMPT
 
         self._history: List[dict] = []
         self._last_interaction: Optional[float] = None
@@ -80,7 +82,7 @@ class AgentClient:
         max_pairs = max(1, self.history_turns)
         window = self._history[-(max_pairs * 2):]  # each turn = 1 user + 1 assistant
 
-        messages = [{"role": "system", "content": _SYSTEM_PROMPT}] + window
+        messages = [{"role": "system", "content": self.system_prompt}] + window
 
         payload = {
             "model": self.model,

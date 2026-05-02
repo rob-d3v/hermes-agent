@@ -27,6 +27,7 @@ class AgentConfig:
     history_turns: int = 6
     history_reset_minutes: int = 10
     timeout: int = 240  # segundos — 240 para Ollama cold start, 30 para APIs cloud
+    system_prompt: str = ""  # vazio = usa o default do agent_client
 
 
 @dataclass
@@ -134,6 +135,7 @@ def load_config(config_path: Optional[str] = None) -> Config:
         max_tokens=int(a.get("max_tokens", AgentConfig.max_tokens)),
         history_turns=int(a.get("history_turns", AgentConfig.history_turns)),
         history_reset_minutes=int(a.get("history_reset_minutes", AgentConfig.history_reset_minutes)),
+        system_prompt=a.get("system_prompt", ""),
     )
 
     # --- wake_word ---
