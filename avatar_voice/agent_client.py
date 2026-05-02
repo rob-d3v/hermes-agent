@@ -90,13 +90,17 @@ class AgentClient:
             "stream": False,
         }
 
+        url = f"{self.base_url}/chat/completions"
+        logger.debug("POST %s  model=%s", url, self.model)
         try:
-            response = self._session.post(
-                f"{self.base_url}/chat/completions",
-                json=payload,
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
+            response = self._session.post(url, json=payload, timeout=self.timeout)
+            if not response.ok:
+                logger.error(
+                    "Agent HTTP %d at %s — body: %s",
+                    response.status_code, url, response.text[:500],
+                )
+                self._history.pop()
+                return ""
             data = response.json()
 
             text = (
@@ -109,20 +113,18 @@ class AgentClient:
             if text:
                 self._history.append({"role": "assistant", "content": text})
             else:
-                # Pop the user message we added if no useful response
+                logger.warning("Agent returned empty content. Full response: %s", data)
                 self._history.pop()
 
             logger.info("Agent response (%d chars): %r", len(text), text[:80])
             return text
 
         except requests.exceptions.ConnectionError:
-            logger.error(
-                "Cannot connect to agent at %s. Is Ollama running?", self.base_url
-            )
-            self._history.pop()  # Don't keep failed message
+            logger.error("Cannot connect to agent at %s — server running?", self.base_url)
+            self._history.pop()
             return ""
         except requests.exceptions.Timeout:
-            logger.error("Agent request timed out after %ds", self.timeout)
+            logger.error("Agent request timed out after %ds at %s", self.timeout, url)
             self._history.pop()
             return ""
         except Exception as e:

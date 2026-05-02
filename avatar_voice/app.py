@@ -182,8 +182,9 @@ class App(ctk.CTk):
         self._apikey_e = self._row(s, "API Key", show="*")
         self._url_e    = self._row(s, "URL")
 
-        # Mascote (Ollama Modelfile)
+        # Mascote (Ollama Modelfile) — only shown for ollama provider
         sm = self._card(scroll, "MASCOTE  (Ollama Modelfile)")
+        self._mascote_card = sm.master
         r  = self._hrow(sm)
         self._mf_base_e = self._labeled(r, "Base", width=110)
         self._mf_base_e.insert(0, "gemma2:2b")
@@ -212,6 +213,7 @@ class App(ctk.CTk):
 
         # Whisper STT
         s2 = self._card(scroll, "WHISPER  (STT)")
+        self._whisper_card = s2.master
         r = self._hrow(s2)
         self._whisper_cb = self._combo(r, ["tiny","base","small","medium","large-v3"], w=130)
         self._lang_e     = self._labeled(r, "Lang", width=44)
@@ -440,6 +442,7 @@ class App(ctk.CTk):
         self._restore_device(self._mic_cb, audio.get("input_device"))
         self._restore_device(self._out_cb, audio.get("output_device"))
         self._update_prov_label()
+        self._toggle_mascote_card(prov == "ollama")
 
     def _do_save(self):
         cfg = self._cfg
@@ -503,6 +506,15 @@ class App(ctk.CTk):
         else:
             self._apikey_e.delete(0, "end")
         self._update_prov_label(value, model)
+        self._toggle_mascote_card(value == "ollama")
+
+    def _toggle_mascote_card(self, show: bool):
+        if show:
+            if not self._mascote_card.winfo_ismapped():
+                self._mascote_card.pack(fill="x", padx=10, pady=(6, 0),
+                                        before=self._whisper_card)
+        else:
+            self._mascote_card.pack_forget()
 
     def _update_prov_label(self, provider: str = "", model: str = ""):
         provider = provider or self._prov_var.get()

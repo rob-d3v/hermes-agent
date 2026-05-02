@@ -46,6 +46,13 @@ testlogs
 # CLI config (may contain sensitive SSH paths)
 cli-config.yaml
 
+# avatar_voice runtime config (contains api keys and local paths)
+avatar_voice/config.yaml
+
+# Claude Code local settings (contain permissions with sensitive tokens)
+.claude/settings.local.json
+*/.claude/settings.local.json
+
 # Skills Hub state (lives in ~/.hermes/skills/.hub/ at runtime, but just in case)
 skills/.hub/
 ignored/
@@ -82,3 +89,4 @@ build/*
 dist/*
 avatar_voice/build/build/*
 avatar_voice/dist/*
+notes
