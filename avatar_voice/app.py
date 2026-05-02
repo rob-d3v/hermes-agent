@@ -1,6 +1,6 @@
 """
 avatar_voice — Desktop App
-Setup, controle e chat numa janela compacta.
+Setup, controle e chat numa janela moderna.
 
 Uso: python app.py
 """
@@ -24,22 +24,33 @@ import customtkinter as ctk
 import requests
 import yaml
 
-# ── Tema ──────────────────────────────────────────────────────────────────────
+# -- Tema (Catppuccin Mocha) ---------------------------------------------------
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
-BASE    = "#1e1e2e"
-SURFACE = "#181825"
-OVERLAY = "#313244"
-MUTED   = "#45475a"
-TEXT    = "#cdd6f4"
-SUBTEXT = "#a6adc8"
-BLUE    = "#89b4fa"
-GREEN   = "#a6e3a1"
-RED     = "#f38ba8"
-YELLOW  = "#f9e2af"
-MAUVE   = "#cba6f7"
-TEAL    = "#94e2d5"
+BASE      = "#1e1e2e"
+SURFACE   = "#181825"
+OVERLAY   = "#313244"
+OVERLAY2  = "#393b54"
+MUTED     = "#45475a"
+TEXT      = "#cdd6f4"
+SUBTEXT   = "#a6adc8"
+BLUE      = "#89b4fa"
+GREEN     = "#a6e3a1"
+RED       = "#f38ba8"
+YELLOW    = "#f9e2af"
+MAUVE     = "#cba6f7"
+TEAL      = "#94e2d5"
+HEADER_BG = "#11111b"
+CARD_BG   = "#262637"
+
+FONT_TITLE = ("Segoe UI", 16, "bold")
+FONT_H2    = ("Segoe UI", 11, "bold")
+FONT_BODY  = ("Segoe UI", 11)
+FONT_SMALL = ("Segoe UI", 10)
+FONT_MONO  = ("Consolas", 11)
+FONT_MONO_SM = ("Consolas", 10)
+FONT_BADGE = ("Consolas", 11, "bold")
 
 STATE_COLOR = {
     "SLEEPING":   "#585b70",
@@ -58,34 +69,40 @@ PROVIDER_PRESETS = {
     "openai":     ("gpt-4o-mini",       "",                                 "https://api.openai.com/v1"),
     "hermes":     ("hermes-agent",      "aa6531e6c0db6b2fba53bb133fac2e0a", "http://localhost:8642/v1"),
     "openrouter": ("openai/gpt-4o-mini","",                                 "https://openrouter.ai/api/v1"),
+    "openclaw":   ("openclaw/default",  "",                                 "http://localhost:18789/v1"),
 }
 
 def _app_dir() -> Path:
-    """Diretório de dados do usuário: junto ao .exe quando frozen, junto ao app.py em dev."""
     return Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
 
 CONFIG_PATH = _app_dir() / "config.yaml"
+ASSETS_DIR  = _app_dir() / "assets"
 
 DEFAULT_SYSTEM = (
-    "Você é um mascote de stream sem filtro. "
-    "Fala com sotaque de Goiás, usando expressões como 'uai', 'trem', 'anêim', 'tá doido' e 'mô do céu'. "
-    "Seja engraçado, meio sarcástico e trate o pessoal como se fosse todo mundo de casa. "
-    "Responda de forma breve e natural, em português brasileiro, como em uma conversa falada. "
-    "NUNCA use emojis, asteriscos, underlines, cerquilhas, til, travessões, "
-    "bullets, markdown ou qualquer símbolo especial. "
-    "Escreva apenas texto simples, sem formatação. "
-    "Máximo de 2 frases curtas por resposta."
+    "Voce e um mascote de stream sem filtro. "
+    "Fala com sotaque de Goias, usando expressoes como 'uai', 'trem', 'aneim', 'ta doido' e 'mo do ceu'. "
+    "Seja engracado, meio sarcastico e trate o pessoal como se fosse todo mundo de casa. "
+    "Responda de forma breve e natural, em portugues brasileiro, como em uma conversa falada. "
+    "NUNCA use emojis, asteriscos, underlines, cerquilhas, til, travessoes, "
+    "bullets, markdown ou qualquer simbolo especial. "
+    "Escreva apenas texto simples, sem formatacao. "
+    "Maximo de 2 frases curtas por resposta."
 )
 
 
-# ── App ───────────────────────────────────────────────────────────────────────
+# -- App -----------------------------------------------------------------------
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("avatar_voice")
-        self.geometry("500x740")
-        self.minsize(460, 600)
+        self.title("Avatar Voice")
+        self.geometry("780x820")
+        self.minsize(680, 640)
         self.configure(fg_color=SURFACE)
+
+        # Window icon
+        ico = ASSETS_DIR / "icon.ico"
+        if ico.exists():
+            self.iconbitmap(str(ico))
 
         self._cfg     = self._load_config()
         self._proc    = None
@@ -100,7 +117,7 @@ class App(ctk.CTk):
         if "--autostart" in sys.argv:
             self.after(2000, self._start)
 
-    # ── Config I/O ────────────────────────────────────────────────────────────
+    # -- Config I/O ------------------------------------------------------------
     def _load_config(self) -> dict:
         if CONFIG_PATH.exists():
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -111,25 +128,56 @@ class App(ctk.CTk):
         with open(CONFIG_PATH, "w", encoding="utf-8") as f:
             yaml.dump(cfg, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
-    # ── UI Build ──────────────────────────────────────────────────────────────
+    # -- UI Build --------------------------------------------------------------
     def _build(self):
-        # ── Header
-        hdr = ctk.CTkFrame(self, fg_color="#11111b", corner_radius=0, height=48)
+        # -- Header ------------------------------------------------------------
+        hdr = ctk.CTkFrame(self, fg_color=HEADER_BG, corner_radius=0, height=64)
         hdr.pack(fill="x")
         hdr.pack_propagate(False)
-        ctk.CTkLabel(hdr, text="avatar_voice",
-                     font=("Courier New", 14, "bold"), text_color=BLUE
-                     ).pack(side="left", padx=18, pady=10)
-        self._badge = ctk.CTkLabel(hdr, text="○  STOPPED",
-                                   font=("Courier New", 11), text_color=MUTED)
-        self._badge.pack(side="right", padx=18)
-        self._prov_lbl = ctk.CTkLabel(hdr, text="",
-                                      font=("Courier New", 10), text_color=SUBTEXT)
-        self._prov_lbl.pack(side="right", padx=(0, 6))
 
-        # ── Tabs
+        hdr_left = ctk.CTkFrame(hdr, fg_color="transparent")
+        hdr_left.pack(side="left", padx=20, pady=8)
+
+        # Logo image
+        self._logo_img = None
+        logo_path = ASSETS_DIR / "logo_64.png"
+        if logo_path.exists():
+            try:
+                from PIL import Image
+                pil = Image.open(logo_path).resize((40, 40), Image.LANCZOS)
+                self._logo_img = ctk.CTkImage(pil, size=(40, 40))
+                ctk.CTkLabel(hdr_left, image=self._logo_img, text=""
+                             ).pack(side="left", padx=(0, 12))
+            except Exception:
+                pass
+
+        title_col = ctk.CTkFrame(hdr_left, fg_color="transparent")
+        title_col.pack(side="left")
+        ctk.CTkLabel(title_col, text="Avatar Voice",
+                     font=FONT_TITLE, text_color=TEXT
+                     ).pack(anchor="w")
+        ctk.CTkLabel(title_col, text="Voice assistant pipeline",
+                     font=("Segoe UI", 9), text_color=MUTED
+                     ).pack(anchor="w")
+
+        # Status badge (right side of header)
+        hdr_right = ctk.CTkFrame(hdr, fg_color="transparent")
+        hdr_right.pack(side="right", padx=20, pady=8)
+
+        self._prov_lbl = ctk.CTkLabel(hdr_right, text="",
+                                       font=FONT_SMALL, text_color=SUBTEXT)
+        self._prov_lbl.pack(anchor="e")
+
+        self._badge = ctk.CTkLabel(hdr_right, text="STOPPED",
+                                    font=FONT_BADGE, text_color=MUTED)
+        self._badge.pack(anchor="e")
+
+        # Accent line under header
+        ctk.CTkFrame(self, fg_color=BLUE, height=2, corner_radius=0).pack(fill="x")
+
+        # -- Tabs --------------------------------------------------------------
         self._tabs = ctk.CTkTabview(
-            self, fg_color=BASE,
+            self, fg_color=BASE, corner_radius=0,
             segmented_button_fg_color=OVERLAY,
             segmented_button_selected_color=BLUE,
             segmented_button_selected_hover_color="#7ba4f5",
@@ -139,271 +187,345 @@ class App(ctk.CTk):
         self._tabs.pack(fill="both", expand=True, padx=0, pady=0)
         for name in ("Setup", "Monitor", "Chat"):
             self._tabs.add(name)
+        # Style the tab buttons
+        self._tabs._segmented_button.configure(font=FONT_H2)
 
         self._build_setup(self._tabs.tab("Setup"))
         self._build_monitor(self._tabs.tab("Monitor"))
         self._build_chat(self._tabs.tab("Chat"))
 
-        # ── Bottom bar
-        bar = ctk.CTkFrame(self, fg_color="#11111b", corner_radius=0, height=58)
+        # -- Bottom bar --------------------------------------------------------
+        bar = ctk.CTkFrame(self, fg_color=HEADER_BG, corner_radius=0, height=64)
         bar.pack(fill="x", side="bottom")
         bar.pack_propagate(False)
 
         self._save_btn = ctk.CTkButton(
-            bar, text="Save", width=80, height=36, corner_radius=8,
-            font=("Courier New", 11), fg_color=OVERLAY, hover_color=MUTED,
+            bar, text="Save", width=100, height=40, corner_radius=10,
+            font=FONT_BODY, fg_color=OVERLAY, hover_color=MUTED,
             text_color=TEXT, command=self._save_from_ui,
         )
-        self._save_btn.pack(side="right", padx=(0, 12), pady=11)
+        self._save_btn.pack(side="right", padx=(0, 16), pady=12)
 
         self._start_btn = ctk.CTkButton(
-            bar, text="▶  Start", width=130, height=36, corner_radius=8,
-            font=("Courier New", 12, "bold"), fg_color=GREEN,
+            bar, text="Start", width=150, height=40, corner_radius=10,
+            font=("Segoe UI", 13, "bold"), fg_color=GREEN,
             hover_color="#94d3a2", text_color="#1e1e2e",
             command=self._toggle,
         )
-        self._start_btn.pack(side="right", padx=(12, 6), pady=11)
+        self._start_btn.pack(side="right", padx=(16, 8), pady=12)
 
-    # ── Setup tab ─────────────────────────────────────────────────────────────
+        # Version label (left side of bottom bar)
+        ctk.CTkLabel(bar, text="v1.0", font=("Segoe UI", 9),
+                     text_color=MUTED).pack(side="left", padx=20)
+
+    # -- Setup tab -------------------------------------------------------------
     def _build_setup(self, parent):
-        scroll = ctk.CTkScrollableFrame(parent, fg_color=BASE, scrollbar_button_color=MUTED)
-        scroll.pack(fill="both", expand=True)
+        scroll = ctk.CTkScrollableFrame(parent, fg_color=BASE,
+                                         scrollbar_button_color=MUTED)
+        scroll.pack(fill="both", expand=True, padx=4, pady=4)
 
-        # Provider
+        # -- Provider ----------------------------------------------------------
         self._prov_var = ctk.StringVar(value="ollama")
-        s = self._card(scroll, "PROVIDER")
+        s = self._card(scroll, "Provider", "LLM backend")
         self._prov_seg = ctk.CTkSegmentedButton(
-            s, values=["ollama", "openai", "hermes", "openrouter"],
-            variable=self._prov_var, font=("Courier New", 11),
+            s, values=["ollama", "openai", "hermes", "openrouter", "openclaw"],
+            variable=self._prov_var, font=FONT_BODY,
             selected_color=BLUE, selected_hover_color="#7ba4f5",
             unselected_color=OVERLAY, unselected_hover_color=MUTED,
             fg_color=OVERLAY, command=self._on_provider,
         )
-        self._prov_seg.pack(fill="x", pady=(2, 6))
-        self._model_e  = self._row(s, "Model")
-        self._apikey_e = self._row(s, "API Key", show="*")
-        self._url_e    = self._row(s, "URL")
-        ctk.CTkLabel(s, text="System prompt:", font=("Courier New", 9),
-                     text_color=MUTED).pack(anchor="w", pady=(8, 1))
+        self._prov_seg.pack(fill="x", pady=(4, 10))
+
+        # Two-column row for model + api key
+        cols = ctk.CTkFrame(s, fg_color="transparent")
+        cols.pack(fill="x", pady=(0, 4))
+        cols.columnconfigure(0, weight=1)
+        cols.columnconfigure(1, weight=1)
+
+        left = ctk.CTkFrame(cols, fg_color="transparent")
+        left.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+        self._model_e = self._labeled_entry(left, "Model")
+
+        right = ctk.CTkFrame(cols, fg_color="transparent")
+        right.grid(row=0, column=1, sticky="ew", padx=(8, 0))
+        self._apikey_e = self._labeled_entry(right, "API Key", show="*")
+
+        self._url_e = self._labeled_entry(s, "Base URL")
+
+        ctk.CTkLabel(s, text="System prompt", font=FONT_SMALL,
+                     text_color=SUBTEXT).pack(anchor="w", pady=(10, 3))
         self._sys_prompt = ctk.CTkTextbox(
-            s, height=80, font=("Courier New", 10), fg_color=SURFACE,
+            s, height=80, font=FONT_MONO_SM, fg_color=SURFACE,
             text_color=TEXT, wrap="word", border_color=MUTED,
-            border_width=1, corner_radius=6)
+            border_width=1, corner_radius=8)
         self._sys_prompt.pack(fill="x", pady=(0, 4))
         self._sys_prompt.insert("1.0", DEFAULT_SYSTEM)
 
-        # Mascote (Ollama Modelfile) — only shown for ollama provider
-        sm = self._card(scroll, "MASCOTE  (Ollama Modelfile)")
+        # -- Mascote (Ollama) --------------------------------------------------
+        sm = self._card(scroll, "Mascote", "Ollama Modelfile builder")
         self._mascote_card = sm.master
-        r  = self._hrow(sm)
-        self._mf_base_e = self._labeled(r, "Base", width=110)
+
+        cols2 = ctk.CTkFrame(sm, fg_color="transparent")
+        cols2.pack(fill="x", pady=(4, 4))
+        cols2.columnconfigure(0, weight=1)
+        cols2.columnconfigure(1, weight=1)
+        cols2.columnconfigure(2, weight=1)
+
+        f1 = ctk.CTkFrame(cols2, fg_color="transparent")
+        f1.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        self._mf_base_e = self._labeled_entry(f1, "Base model")
         self._mf_base_e.insert(0, "gemma2:2b")
-        self._mf_name_e = self._labeled(r, "Nome", width=85)
+
+        f2 = ctk.CTkFrame(cols2, fg_color="transparent")
+        f2.grid(row=0, column=1, sticky="ew", padx=(6, 6))
+        self._mf_name_e = self._labeled_entry(f2, "Name")
         self._mf_name_e.insert(0, "mascote")
-        r2 = self._hrow(sm)
-        self._mf_temp_lbl, self._mf_temp_sl = self._slider(
-            r2, "Temp", 0.1, 2.0, 19, 0.9, fmt=lambda v: f"{v:.1f}")
-        ctk.CTkLabel(sm, text="System prompt:", font=("Courier New", 9),
-                     text_color=MUTED).pack(anchor="w", pady=(6, 1))
+
+        f3 = ctk.CTkFrame(cols2, fg_color="transparent")
+        f3.grid(row=0, column=2, sticky="ew", padx=(6, 0))
+        self._mf_temp_lbl, self._mf_temp_sl = self._labeled_slider(
+            f3, "Temperature", 0.1, 2.0, 19, 0.9, fmt=lambda v: f"{v:.1f}")
+
+        ctk.CTkLabel(sm, text="System prompt", font=FONT_SMALL,
+                     text_color=SUBTEXT).pack(anchor="w", pady=(8, 3))
         self._mf_sys = ctk.CTkTextbox(
-            sm, height=88, font=("Courier New", 10), fg_color=SURFACE,
+            sm, height=80, font=FONT_MONO_SM, fg_color=SURFACE,
             text_color=TEXT, wrap="word", border_color=MUTED,
-            border_width=1, corner_radius=6)
-        self._mf_sys.pack(fill="x", pady=(0, 6))
+            border_width=1, corner_radius=8)
+        self._mf_sys.pack(fill="x", pady=(0, 8))
         self._mf_sys.insert("1.0", DEFAULT_SYSTEM)
-        r3 = self._hrow(sm)
-        ctk.CTkButton(r3, text="Salvar .mf", width=100, height=28,
-                      corner_radius=6, font=("Courier New", 10),
+
+        btn_row = ctk.CTkFrame(sm, fg_color="transparent")
+        btn_row.pack(fill="x")
+        ctk.CTkButton(btn_row, text="Save .mf", width=110, height=32,
+                      corner_radius=8, font=FONT_SMALL,
                       fg_color=OVERLAY, hover_color=MUTED, text_color=TEXT,
-                      command=self._save_modelfile).pack(side="left", padx=(0, 8))
-        ctk.CTkButton(r3, text="Criar no Ollama", width=130, height=28,
-                      corner_radius=6, font=("Courier New", 10, "bold"),
+                      command=self._save_modelfile).pack(side="left", padx=(0, 10))
+        ctk.CTkButton(btn_row, text="Create in Ollama", width=150, height=32,
+                      corner_radius=8, font=("Segoe UI", 10, "bold"),
                       fg_color=MAUVE, hover_color="#b994e8", text_color="#1e1e2e",
                       command=self._create_mascote).pack(side="left")
 
-        # Whisper STT
-        s2 = self._card(scroll, "WHISPER  (STT)")
-        self._whisper_card = s2.master
-        r = self._hrow(s2)
-        self._whisper_cb = self._combo(r, ["tiny","base","small","medium","large-v3"], w=130)
-        self._lang_e     = self._labeled(r, "Lang", width=44)
-        self._stt_dev_cb = self._combo(self._hrow(s2, label="Device"), ["auto","cpu","cuda"], w=90)
+        # -- Two-column: STT + TTS ---------------------------------------------
+        two_col = ctk.CTkFrame(scroll, fg_color="transparent")
+        two_col.pack(fill="x", padx=0, pady=0)
+        two_col.columnconfigure(0, weight=1)
+        two_col.columnconfigure(1, weight=1)
 
-        # Piper TTS
-        s3 = self._card(scroll, "PIPER  (TTS)")
-        r = self._hrow(s3, label="Voice")
-        self._tts_e = ctk.CTkEntry(r, font=("Courier New", 10), height=28, corner_radius=6,
-                                    fg_color=OVERLAY, border_color=MUTED, text_color=TEXT)
-        self._tts_e.pack(side="left", fill="x", expand=True, padx=(4, 4))
-        ctk.CTkButton(r, text="…", width=28, height=28, corner_radius=6,
-                      fg_color=SURFACE, hover_color=MUTED,
+        # STT card (left)
+        stt_wrap = ctk.CTkFrame(two_col, fg_color="transparent")
+        stt_wrap.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
+        s2 = self._card(stt_wrap, "Speech-to-Text", "Whisper STT")
+        self._whisper_card = s2.master
+
+        self._whisper_cb = self._labeled_combo(s2, "Model",
+            ["tiny", "base", "small", "medium", "large-v3"], w=140)
+        self._lang_e = self._labeled_entry(s2, "Language")
+        self._stt_dev_cb = self._labeled_combo(s2, "Device",
+            ["auto", "cpu", "cuda"], w=100)
+
+        # TTS card (right)
+        tts_wrap = ctk.CTkFrame(two_col, fg_color="transparent")
+        tts_wrap.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
+        s3 = self._card(tts_wrap, "Text-to-Speech", "Piper TTS")
+
+        voice_row = ctk.CTkFrame(s3, fg_color="transparent")
+        voice_row.pack(fill="x", pady=(4, 4))
+        ctk.CTkLabel(voice_row, text="Voice", font=FONT_SMALL,
+                     text_color=SUBTEXT).pack(anchor="w")
+        file_row = ctk.CTkFrame(voice_row, fg_color="transparent")
+        file_row.pack(fill="x", pady=(2, 0))
+        self._tts_e = ctk.CTkEntry(file_row, font=FONT_MONO_SM, height=30,
+                                    corner_radius=8, fg_color=OVERLAY,
+                                    border_color=MUTED, text_color=TEXT)
+        self._tts_e.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        ctk.CTkButton(file_row, text="...", width=32, height=30, corner_radius=8,
+                      fg_color=SURFACE, hover_color=MUTED, text_color=SUBTEXT,
                       command=lambda: self._browse(self._tts_e, "*.onnx")).pack(side="left")
 
-        r2 = self._hrow(s3)
-        self._speed_lbl, self._speed_sl = self._slider(r2, "Speed", 0.5, 2.0, 30, 0.95,
-                                                         fmt=lambda v: f"{v:.2f}")
-        self._pitch_lbl, self._pitch_sl = self._slider(r2, "Pitch", -6, 6, 12, 0,
-                                                         fmt=lambda v: f"{int(v):+d}", pad=12)
+        sl_row = ctk.CTkFrame(s3, fg_color="transparent")
+        sl_row.pack(fill="x", pady=(4, 4))
+        self._speed_lbl, self._speed_sl = self._labeled_slider(
+            sl_row, "Speed", 0.5, 2.0, 30, 0.95, fmt=lambda v: f"{v:.2f}")
+        self._pitch_lbl, self._pitch_sl = self._labeled_slider(
+            sl_row, "Pitch", -6, 6, 12, 0, fmt=lambda v: f"{int(v):+d}")
 
-        r3 = self._hrow(s3, label="Test")
+        # TTS test
+        ctk.CTkLabel(s3, text="Test", font=FONT_SMALL,
+                     text_color=SUBTEXT).pack(anchor="w", pady=(6, 2))
+        test_row = ctk.CTkFrame(s3, fg_color="transparent")
+        test_row.pack(fill="x")
         self._tts_test_e = ctk.CTkEntry(
-            r3, font=("Courier New", 10), height=28, corner_radius=6,
+            test_row, font=FONT_MONO_SM, height=30, corner_radius=8,
             fg_color=OVERLAY, border_color=MUTED, text_color=TEXT,
-            placeholder_text="Frase para testar o Piper…",
+            placeholder_text="Frase para testar...",
         )
-        self._tts_test_e.pack(side="left", fill="x", expand=True, padx=(4, 4))
-        self._tts_test_e.insert(0, "Uai, ocê tá me ouvindo bem, sô?")
+        self._tts_test_e.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        self._tts_test_e.insert(0, "Uai, oce ta me ouvindo bem, so?")
         self._tts_btn = ctk.CTkButton(
-            r3, text="▶", width=32, height=28, corner_radius=6,
-            font=("Courier New", 11, "bold"),
+            test_row, text="Play", width=60, height=30, corner_radius=8,
+            font=("Segoe UI", 10, "bold"),
             fg_color=TEAL, hover_color="#7ecfc3", text_color="#1e1e2e",
             command=self._tts_test,
         )
         self._tts_btn.pack(side="left")
 
-        # Wake Word
-        s4 = self._card(scroll, "WAKE WORD")
-        r = self._hrow(s4, label="Model")
-        self._ww_e = ctk.CTkEntry(r, font=("Courier New", 10), height=28, corner_radius=6,
-                                   fg_color=OVERLAY, border_color=MUTED, text_color=TEXT)
-        self._ww_e.pack(side="left", fill="x", expand=True, padx=(4, 4))
-        ctk.CTkButton(r, text="…", width=28, height=28, corner_radius=6,
-                      fg_color=SURFACE, hover_color=MUTED,
+        # -- Two-column: Wake Word + Audio -------------------------------------
+        two_col2 = ctk.CTkFrame(scroll, fg_color="transparent")
+        two_col2.pack(fill="x", padx=0, pady=0)
+        two_col2.columnconfigure(0, weight=1)
+        two_col2.columnconfigure(1, weight=1)
+
+        # Wake Word (left)
+        ww_wrap = ctk.CTkFrame(two_col2, fg_color="transparent")
+        ww_wrap.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
+        s4 = self._card(ww_wrap, "Wake Word", "OpenWakeWord trigger")
+
+        ww_file_row = ctk.CTkFrame(s4, fg_color="transparent")
+        ww_file_row.pack(fill="x", pady=(4, 4))
+        ctk.CTkLabel(ww_file_row, text="Model", font=FONT_SMALL,
+                     text_color=SUBTEXT).pack(anchor="w")
+        ww_fr = ctk.CTkFrame(ww_file_row, fg_color="transparent")
+        ww_fr.pack(fill="x", pady=(2, 0))
+        self._ww_e = ctk.CTkEntry(ww_fr, font=FONT_MONO_SM, height=30,
+                                   corner_radius=8, fg_color=OVERLAY,
+                                   border_color=MUTED, text_color=TEXT)
+        self._ww_e.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        ctk.CTkButton(ww_fr, text="...", width=32, height=30, corner_radius=8,
+                      fg_color=SURFACE, hover_color=MUTED, text_color=SUBTEXT,
                       command=lambda: self._browse(self._ww_e, "*.onnx")).pack(side="left")
 
-        r2 = self._hrow(s4)
-        self._thresh_lbl, self._thresh_sl = self._slider(r2, "Threshold", 0.1, 0.99, 18, 0.5,
-                                                          fmt=lambda v: f"{v:.2f}")
+        self._thresh_lbl, self._thresh_sl = self._labeled_slider(
+            s4, "Threshold", 0.1, 0.99, 18, 0.5, fmt=lambda v: f"{v:.2f}")
+
         self._kb_var = ctk.BooleanVar()
-        ctk.CTkCheckBox(r2, text="Keyboard fallback", variable=self._kb_var,
-                        font=("Courier New", 10), text_color=SUBTEXT,
-                        checkbox_width=16, checkbox_height=16,
+        ctk.CTkCheckBox(s4, text="Keyboard fallback", variable=self._kb_var,
+                        font=FONT_SMALL, text_color=SUBTEXT,
+                        checkbox_width=18, checkbox_height=18,
                         fg_color=BLUE, border_color=MUTED,
                         checkmark_color="#1e1e2e"
-                        ).pack(side="left", padx=(14, 0))
+                        ).pack(anchor="w", pady=(8, 4))
 
-        # Audio Devices
-        s5 = self._card(scroll, "AUDIO")
+        # Audio (right)
+        audio_wrap = ctk.CTkFrame(two_col2, fg_color="transparent")
+        audio_wrap.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
+        s5 = self._card(audio_wrap, "Audio", "Input/output devices")
         self._audio_devs = self._audio_devices()
-        self._mic_cb = self._combo(self._hrow(s5, label="Mic"),    ["Default"] + self._audio_devs)
-        self._out_cb = self._combo(self._hrow(s5, label="Output"), ["Default"] + self._audio_devs)
+        self._mic_cb = self._labeled_combo(s5, "Microphone",
+                                            ["Default"] + self._audio_devs)
+        self._out_cb = self._labeled_combo(s5, "Output",
+                                            ["Default"] + self._audio_devs)
 
-        # Sistema
-        s6 = self._card(scroll, "SISTEMA")
+        # -- System ------------------------------------------------------------
+        s6 = self._card(scroll, "System", "Startup options")
         self._startup_var = ctk.BooleanVar(value=self._startup_enabled())
         ctk.CTkCheckBox(
-            s6, text="Iniciar com o Windows", variable=self._startup_var,
-            font=("Courier New", 10), text_color=SUBTEXT,
-            checkbox_width=16, checkbox_height=16,
+            s6, text="Start with Windows", variable=self._startup_var,
+            font=FONT_BODY, text_color=SUBTEXT,
+            checkbox_width=18, checkbox_height=18,
             fg_color=BLUE, border_color=MUTED, checkmark_color="#1e1e2e",
             command=self._apply_startup,
             state="normal" if _WIN else "disabled",
-        ).pack(anchor="w", pady=(2, 4))
+        ).pack(anchor="w", pady=(4, 4))
 
-    # ── Monitor tab ───────────────────────────────────────────────────────────
+    # -- Monitor tab -----------------------------------------------------------
     def _build_monitor(self, parent):
         self._log = ctk.CTkTextbox(
-            parent, font=("Courier New", 10), fg_color=BASE,
+            parent, font=FONT_MONO_SM, fg_color=BASE,
             text_color=SUBTEXT, wrap="word", activate_scrollbars=True,
+            corner_radius=0,
         )
-        self._log.pack(fill="both", expand=True, padx=8, pady=8)
+        self._log.pack(fill="both", expand=True, padx=12, pady=12)
         self._log.configure(state="disabled")
 
-    # ── Chat tab ──────────────────────────────────────────────────────────────
+    # -- Chat tab --------------------------------------------------------------
     def _build_chat(self, parent):
         self._chat = ctk.CTkTextbox(
-            parent, font=("Courier New", 11), fg_color=BASE,
+            parent, font=FONT_MONO, fg_color=BASE,
             text_color=TEXT, wrap="word", activate_scrollbars=True,
+            corner_radius=0,
         )
-        self._chat.pack(fill="both", expand=True, padx=8, pady=(8, 4))
+        self._chat.pack(fill="both", expand=True, padx=12, pady=(12, 6))
         self._chat.configure(state="disabled")
-        self._chat.tag_config("user",    foreground=GREEN)
-        self._chat.tag_config("avatar",   foreground=BLUE)
-        self._chat.tag_config("inject",  foreground=YELLOW)
-        self._chat.tag_config("dim",     foreground=MUTED)
+        self._chat.tag_config("user",   foreground=GREEN)
+        self._chat.tag_config("avatar", foreground=BLUE)
+        self._chat.tag_config("inject", foreground=YELLOW)
+        self._chat.tag_config("dim",    foreground=MUTED)
 
         row = ctk.CTkFrame(parent, fg_color="transparent")
-        row.pack(fill="x", padx=8, pady=(0, 8))
-        self._msg_e = ctk.CTkEntry(row, font=("Courier New", 11), height=34,
-                                    corner_radius=8, fg_color=OVERLAY,
+        row.pack(fill="x", padx=12, pady=(0, 12))
+        self._msg_e = ctk.CTkEntry(row, font=FONT_MONO, height=38,
+                                    corner_radius=10, fg_color=OVERLAY,
                                     border_color=MUTED, text_color=TEXT,
-                                    placeholder_text="Injetar mensagem (bypassa wake word)…")
-        self._msg_e.pack(side="left", fill="x", expand=True, padx=(0, 6))
+                                    placeholder_text="Inject message (bypasses wake word)...")
+        self._msg_e.pack(side="left", fill="x", expand=True, padx=(0, 8))
         self._msg_e.bind("<Return>", lambda _: self._send())
-        ctk.CTkButton(row, text="Send", width=70, height=34, corner_radius=8,
-                      font=("Courier New", 11, "bold"),
+        ctk.CTkButton(row, text="Send", width=80, height=38, corner_radius=10,
+                      font=("Segoe UI", 11, "bold"),
                       fg_color=BLUE, hover_color="#7ba4f5", text_color="#1e1e2e",
                       command=self._send).pack(side="left")
 
-    # ── UI helpers ────────────────────────────────────────────────────────────
-    def _card(self, parent, title: str) -> ctk.CTkFrame:
-        wrap = ctk.CTkFrame(parent, fg_color=OVERLAY, corner_radius=10)
-        wrap.pack(fill="x", padx=10, pady=(6, 0))
-        ctk.CTkLabel(wrap, text=title, font=("Courier New", 9, "bold"),
-                     text_color=MUTED).pack(anchor="w", padx=10, pady=(6, 0))
+    # -- UI Helpers ------------------------------------------------------------
+    def _card(self, parent, title: str, subtitle: str = "") -> ctk.CTkFrame:
+        wrap = ctk.CTkFrame(parent, fg_color=CARD_BG, corner_radius=12,
+                             border_width=1, border_color=OVERLAY)
+        wrap.pack(fill="x", padx=8, pady=(8, 0))
+
+        hdr = ctk.CTkFrame(wrap, fg_color="transparent")
+        hdr.pack(fill="x", padx=14, pady=(10, 0))
+        ctk.CTkLabel(hdr, text=title, font=FONT_H2,
+                     text_color=TEXT).pack(side="left")
+        if subtitle:
+            ctk.CTkLabel(hdr, text=subtitle, font=("Segoe UI", 9),
+                         text_color=MUTED).pack(side="left", padx=(8, 0))
+
         inner = ctk.CTkFrame(wrap, fg_color="transparent")
-        inner.pack(fill="x", padx=8, pady=(2, 8))
+        inner.pack(fill="x", padx=14, pady=(4, 12))
         return inner
 
-    def _row(self, parent, label: str, show: str = "") -> ctk.CTkEntry:
-        r = ctk.CTkFrame(parent, fg_color="transparent")
-        r.pack(fill="x", pady=(3, 0))
-        ctk.CTkLabel(r, text=label, font=("Courier New", 10),
-                     text_color=SUBTEXT, width=52, anchor="w").pack(side="left")
-        e = ctk.CTkEntry(r, font=("Courier New", 11), height=28, corner_radius=6,
-                         fg_color=SURFACE, border_color=MUTED, text_color=TEXT,
-                         show=show)
-        e.pack(side="left", fill="x", expand=True, padx=(4, 0))
+    def _labeled_entry(self, parent, label: str, show: str = "") -> ctk.CTkEntry:
+        ctk.CTkLabel(parent, text=label, font=FONT_SMALL,
+                     text_color=SUBTEXT).pack(anchor="w", pady=(4, 2))
+        e = ctk.CTkEntry(parent, font=FONT_MONO, height=32, corner_radius=8,
+                          fg_color=OVERLAY, border_color=MUTED, text_color=TEXT,
+                          show=show)
+        e.pack(fill="x")
         return e
 
-    def _hrow(self, parent, label: str = "") -> ctk.CTkFrame:
-        r = ctk.CTkFrame(parent, fg_color="transparent")
-        r.pack(fill="x", pady=(3, 0))
-        if label:
-            ctk.CTkLabel(r, text=label, font=("Courier New", 10),
-                         text_color=SUBTEXT, width=52, anchor="w").pack(side="left")
-        return r
-
-    def _labeled(self, parent, label: str, width: int = 60) -> ctk.CTkEntry:
-        ctk.CTkLabel(parent, text=label, font=("Courier New", 10),
-                     text_color=SUBTEXT).pack(side="left", padx=(8, 2))
-        e = ctk.CTkEntry(parent, font=("Courier New", 11), height=28,
-                          corner_radius=6, fg_color=SURFACE, border_color=MUTED,
-                          text_color=TEXT, width=width)
-        e.pack(side="left")
-        return e
-
-    def _combo(self, parent, values: list, w: int = 0) -> ctk.CTkComboBox:
+    def _labeled_combo(self, parent, label: str, values: list, w: int = 0) -> ctk.CTkComboBox:
+        ctk.CTkLabel(parent, text=label, font=FONT_SMALL,
+                     text_color=SUBTEXT).pack(anchor="w", pady=(4, 2))
         kw = {"width": w} if w else {}
-        c = ctk.CTkComboBox(parent, values=values, font=("Courier New", 10),
-                             height=28, corner_radius=6, fg_color=SURFACE,
+        c = ctk.CTkComboBox(parent, values=values, font=FONT_MONO_SM,
+                             height=30, corner_radius=8, fg_color=OVERLAY,
                              border_color=MUTED, button_color=MUTED,
                              dropdown_fg_color=OVERLAY, text_color=TEXT, **kw)
-        c.pack(side="left", padx=(4, 0))
+        c.pack(fill="x")
         return c
 
-    def _slider(self, parent, label: str, lo, hi, steps, default,
-                fmt, pad: int = 0):
-        if pad:
-            ctk.CTkFrame(parent, fg_color="transparent", width=pad
-                         ).pack(side="left")
-        ctk.CTkLabel(parent, text=label, font=("Courier New", 10),
-                     text_color=SUBTEXT).pack(side="left", padx=(4, 2))
-        lbl = ctk.CTkLabel(parent, text=fmt(default), font=("Courier New", 10),
-                            text_color=TEXT, width=32)
-        sl  = ctk.CTkSlider(parent, from_=lo, to=hi, number_of_steps=steps,
-                             width=100, height=16, button_color=BLUE,
-                             button_hover_color="#7ba4f5", progress_color=BLUE,
-                             fg_color=MUTED,
-                             command=lambda v, l=lbl, f=fmt: l.configure(text=f(v)))
+    def _labeled_slider(self, parent, label: str, lo, hi, steps, default,
+                        fmt):
+        row = ctk.CTkFrame(parent, fg_color="transparent")
+        row.pack(fill="x", pady=(4, 2))
+
+        ctk.CTkLabel(row, text=label, font=FONT_SMALL,
+                     text_color=SUBTEXT).pack(side="left")
+        lbl = ctk.CTkLabel(row, text=fmt(default), font=FONT_MONO_SM,
+                            text_color=BLUE, width=40)
+        lbl.pack(side="right")
+
+        sl = ctk.CTkSlider(parent, from_=lo, to=hi, number_of_steps=steps,
+                            height=16, button_color=BLUE,
+                            button_hover_color="#7ba4f5", progress_color=BLUE,
+                            fg_color=MUTED,
+                            command=lambda v, l=lbl, f=fmt: l.configure(text=f(v)))
         sl.set(default)
-        sl.pack(side="left", padx=(0, 4))
-        lbl.pack(side="left")
+        sl.pack(fill="x", pady=(0, 2))
         return lbl, sl
 
     def _browse(self, entry: ctk.CTkEntry, pattern: str):
         path = filedialog.askopenfilename(
-            filetypes=[(pattern.replace("*","Model"), pattern), ("All","*.*")])
+            filetypes=[(pattern.replace("*", "Model"), pattern), ("All", "*.*")])
         if path:
             entry.delete(0, "end")
             entry.insert(0, path)
@@ -415,7 +537,7 @@ class App(ctk.CTk):
         except Exception:
             return []
 
-    # ── Config sync ───────────────────────────────────────────────────────────
+    # -- Config sync -----------------------------------------------------------
     def _apply_config(self):
         cfg   = self._cfg
         agent = cfg.get("agent", {})
@@ -426,7 +548,8 @@ class App(ctk.CTk):
         url = agent.get("base_url", "http://localhost:11434/v1")
         prov = ("openai" if "openai.com" in url else
                 "hermes" if "8642" in url else
-                "openrouter" if "openrouter" in url else "ollama")
+                "openrouter" if "openrouter" in url else
+                "openclaw" if "18789" in url else "ollama")
         self._prov_var.set(prov)
 
         self._set_entry(self._model_e,  agent.get("model",   "mascote"))
@@ -440,13 +563,13 @@ class App(ctk.CTk):
         self._set_entry(self._lang_e, stt.get("language", "pt"))
         self._stt_dev_cb.set(stt.get("device", "auto"))
 
-        self._set_entry(self._tts_e, tts.get("model_path","../piper_models/nanda_ptbr.onnx"))
+        self._set_entry(self._tts_e, tts.get("model_path", "../piper_models/nanda_ptbr.onnx"))
         spd = tts.get("length_scale", 0.95)
         self._speed_sl.set(spd); self._speed_lbl.configure(text=f"{spd:.2f}")
         pit = tts.get("pitch_semitones", 0)
         self._pitch_sl.set(pit); self._pitch_lbl.configure(text=f"{int(pit):+d}")
 
-        self._set_entry(self._ww_e, ww.get("model_path","../wake_word_models/central.onnx"))
+        self._set_entry(self._ww_e, ww.get("model_path", "../wake_word_models/central.onnx"))
         thr = ww.get("threshold", 0.5)
         self._thresh_sl.set(thr); self._thresh_lbl.configure(text=f"{thr:.2f}")
         self._kb_var.set(ww.get("fallback_mode") == "keyboard")
@@ -459,7 +582,7 @@ class App(ctk.CTk):
 
     def _do_save(self):
         cfg = self._cfg
-        for sec in ("agent","stt","tts","wake_word","audio"):
+        for sec in ("agent", "stt", "tts", "wake_word", "audio"):
             cfg.setdefault(sec, {})
 
         cfg["agent"].update({
@@ -477,13 +600,13 @@ class App(ctk.CTk):
             "device":   self._stt_dev_cb.get(),
         })
         cfg["tts"].update({
-            "model_path":    self._tts_e.get().strip(),
-            "length_scale":  round(self._speed_sl.get(), 2),
+            "model_path":      self._tts_e.get().strip(),
+            "length_scale":    round(self._speed_sl.get(), 2),
             "pitch_semitones": int(self._pitch_sl.get()),
         })
         cfg["wake_word"].update({
-            "model_path":  self._ww_e.get().strip(),
-            "threshold":   round(self._thresh_sl.get(), 2),
+            "model_path":    self._ww_e.get().strip(),
+            "threshold":     round(self._thresh_sl.get(), 2),
             "fallback_mode": "keyboard" if self._kb_var.get() else None,
         })
 
@@ -505,16 +628,16 @@ class App(ctk.CTk):
         self._update_prov_label()
 
     def _save_from_ui(self):
-        """Salva e dá feedback visual (botão Save manual)."""
         self._do_save()
-        self._log_line("Config salvo.")
-        self._save_btn.configure(text="Salvo ✓", fg_color="#2d5a27", text_color=GREEN)
-        self.after(1500, lambda: self._save_btn.configure(text="Save", fg_color=OVERLAY, text_color=TEXT))
+        self._log_line("Config saved.")
+        self._save_btn.configure(text="Saved", fg_color="#2d5a27", text_color=GREEN)
+        self.after(1500, lambda: self._save_btn.configure(
+            text="Save", fg_color=OVERLAY, text_color=TEXT))
 
     def _on_provider(self, value: str):
-        model, key, url = PROVIDER_PRESETS.get(value, ("","",""))
+        model, key, url = PROVIDER_PRESETS.get(value, ("", "", ""))
         self._set_entry(self._model_e, model)
-        self._set_entry(self._url_e,   url)
+        self._set_entry(self._url_e, url)
         if key:
             self._set_entry(self._apikey_e, key)
         else:
@@ -525,22 +648,22 @@ class App(ctk.CTk):
     def _toggle_mascote_card(self, show: bool):
         if show:
             if not self._mascote_card.winfo_ismapped():
-                self._mascote_card.pack(fill="x", padx=10, pady=(6, 0),
-                                        before=self._whisper_card)
+                self._mascote_card.pack(fill="x", padx=8, pady=(8, 0),
+                                        before=self._whisper_card.master.master)
         else:
             self._mascote_card.pack_forget()
 
     def _update_prov_label(self, provider: str = "", model: str = ""):
         provider = provider or self._prov_var.get()
         model    = model    or self._model_e.get().strip()
-        self._prov_lbl.configure(text=f"[{provider}  {model}]")
+        self._prov_lbl.configure(text=f"{provider} / {model}")
 
     @staticmethod
     def _set_entry(e: ctk.CTkEntry, val: str):
         e.delete(0, "end")
         e.insert(0, val)
 
-    # ── Pipeline ──────────────────────────────────────────────────────────────
+    # -- Pipeline --------------------------------------------------------------
     def _toggle(self):
         if self._running:
             self._stop()
@@ -550,7 +673,6 @@ class App(ctk.CTk):
 
     def _start(self):
         if getattr(sys, "frozen", False):
-            # Running as PyInstaller .exe — re-invoke self with _pipeline flag
             cmd = [sys.executable, "_pipeline",
                    "--provider", self._prov_var.get(),
                    "--port", "3005"]
@@ -571,21 +693,21 @@ class App(ctk.CTk):
                 env={**os.environ, "PYTHONIOENCODING": "utf-8"},
             )
         except Exception as exc:
-            self._log_line(f"Erro ao iniciar: {exc}", color=RED)
+            self._log_line(f"Error starting: {exc}", color=RED)
             return
 
         self._running = True
-        self._start_btn.configure(text="■  Stop", fg_color=RED, hover_color="#e07070")
+        self._start_btn.configure(text="Stop", fg_color=RED, hover_color="#e07070")
         self._set_state("STARTING")
         threading.Thread(target=self._read_proc, daemon=True).start()
-        threading.Thread(target=self._sse_loop,  daemon=True).start()
+        threading.Thread(target=self._sse_loop, daemon=True).start()
 
     def _stop(self):
         if self._proc:
             self._proc.terminate()
             self._proc = None
         self._running = False
-        self._start_btn.configure(text="▶  Start", fg_color=GREEN, hover_color="#94d3a2")
+        self._start_btn.configure(text="Start", fg_color=GREEN, hover_color="#94d3a2")
         self._set_state("STOPPED")
 
     def _read_proc(self):
@@ -628,7 +750,7 @@ class App(ctk.CTk):
             daemon=True,
         ).start()
 
-    # ── Event loop ────────────────────────────────────────────────────────────
+    # -- Event loop ------------------------------------------------------------
     def _poll(self):
         try:
             while True:
@@ -642,16 +764,15 @@ class App(ctk.CTk):
 
     def _on_sse(self, ev: dict):
         t = ev.get("type")
-        if   t == "state":      self._set_state(ev.get("state",""))
-        elif t == "transcript": self._chat_append("você",    ev.get("text",""), "user")
-        elif t == "response":   self._chat_append("avatar",   ev.get("text",""), "avatar")
-        elif t == "inject":     self._chat_append("enviado", ev.get("text",""), "inject")
-        elif t == "tts":        self._chat_append("avatar", ev.get("text",""), "avatar")
+        if   t == "state":      self._set_state(ev.get("state", ""))
+        elif t == "transcript": self._chat_append("you",    ev.get("text", ""), "user")
+        elif t == "response":   self._chat_append("avatar", ev.get("text", ""), "avatar")
+        elif t == "inject":     self._chat_append("sent",   ev.get("text", ""), "inject")
+        elif t == "tts":        self._chat_append("avatar", ev.get("text", ""), "avatar")
 
     def _set_state(self, state: str):
         color = STATE_COLOR.get(state, MUTED)
-        sym   = "●" if state not in ("STOPPED","STARTING") else "○"
-        self._badge.configure(text=f"{sym}  {state}", text_color=color)
+        self._badge.configure(text=state, text_color=color)
 
     def _log_line(self, msg: str, color: str = ""):
         self._log.configure(state="normal")
@@ -690,7 +811,7 @@ class App(ctk.CTk):
         if not path:
             return
         Path(path).write_text(content, encoding="utf-8")
-        self._log_line(f"Modelfile salvo: {path}")
+        self._log_line(f"Modelfile saved: {path}")
 
     def _create_mascote(self):
         import tempfile
@@ -698,7 +819,7 @@ class App(ctk.CTk):
         content = self._build_modelfile()
         tmp     = Path(tempfile.mktemp(suffix=".mf"))
         tmp.write_text(content, encoding="utf-8")
-        self._log_line(f"Criando modelo '{name}'… veja no Monitor.")
+        self._log_line(f"Creating model '{name}'...")
         self._tabs.set("Monitor")
         threading.Thread(
             target=self._run_ollama_create, args=(name, tmp), daemon=True
@@ -715,11 +836,11 @@ class App(ctk.CTk):
             for line in proc.stdout:
                 self._evq.put(("log", line.rstrip()))
             proc.wait()
-            self._evq.put(("log", f"[ollama] '{name}' pronto (código {proc.returncode})"))
+            self._evq.put(("log", f"[ollama] '{name}' ready (code {proc.returncode})"))
         except FileNotFoundError:
-            self._evq.put(("log", "[ollama] comando não encontrado — Ollama instalado?"))
+            self._evq.put(("log", "[ollama] command not found - is Ollama installed?"))
         except Exception as e:
-            self._evq.put(("log", f"[ollama] erro: {e}"))
+            self._evq.put(("log", f"[ollama] error: {e}"))
         finally:
             try:
                 mf_path.unlink()
@@ -730,7 +851,7 @@ class App(ctk.CTk):
         text = self._tts_test_e.get().strip()
         if not text:
             return
-        self._tts_btn.configure(state="disabled", text="…")
+        self._tts_btn.configure(state="disabled", text="...")
         self._tabs.set("Monitor")
 
         cfg = self._cfg.get("tts", {})
@@ -750,14 +871,13 @@ class App(ctk.CTk):
                 sys.path.insert(0, str(Path(__file__).parent))
                 from tts_piper import PiperTTS
 
-                # Resolve piper binary path
                 resolved_bin = shutil.which(piper_bin) or piper_bin
                 sox_found = shutil.which("sox")
                 self._evq.put(("log", f"[TTS test] piper={resolved_bin}"))
                 self._evq.put(("log", f"[TTS test] model={model_path}"))
-                self._evq.put(("log", f"[TTS test] speed(length_scale)={length_scale}  pitch={pitch:+d}st"))
-                self._evq.put(("log", f"[TTS test] sox={'sim → ' + sox_found if sox_found else 'NÃO encontrado (pitch usa numpy)'}"))
-                self._evq.put(("log", f"[TTS test] texto → {text[:70]}"))
+                self._evq.put(("log", f"[TTS test] speed={length_scale}  pitch={pitch:+d}st"))
+                self._evq.put(("log", f"[TTS test] sox={'yes: ' + sox_found if sox_found else 'not found (pitch uses numpy)'}"))
+                self._evq.put(("log", f"[TTS test] text: {text[:70]}"))
 
                 tts = PiperTTS(
                     piper_binary=piper_bin,
@@ -769,11 +889,11 @@ class App(ctk.CTk):
                     output_device=out_device,
                 )
                 tts.speak(text)
-                self._evq.put(("log", "[TTS test] concluído."))
+                self._evq.put(("log", "[TTS test] done."))
             except Exception as exc:
-                self._evq.put(("log", f"[TTS test] erro: {exc}"))
+                self._evq.put(("log", f"[TTS test] error: {exc}"))
             finally:
-                self.after(0, lambda: self._tts_btn.configure(state="normal", text="▶"))
+                self.after(0, lambda: self._tts_btn.configure(state="normal", text="Play"))
 
         threading.Thread(target=run, daemon=True).start()
 
@@ -781,7 +901,6 @@ class App(ctk.CTk):
         if saved is None:
             combo.set("Default")
             return
-        # saved é índice inteiro — acha a string correspondente "N: Nome"
         prefix = f"{saved}:"
         match = next((d for d in self._audio_devs if d.startswith(prefix)), None)
         combo.set(match if match else "Default")
@@ -792,7 +911,7 @@ class App(ctk.CTk):
             return False
         try:
             with _winreg.OpenKey(_winreg.HKEY_CURRENT_USER,
-                                 r"Software\Microsoft\Windows\CurrentVersion\Run") as k:
+                                  r"Software\Microsoft\Windows\CurrentVersion\Run") as k:
                 _winreg.QueryValueEx(k, "avatar_voice")
                 return True
         except OSError:
@@ -806,7 +925,7 @@ class App(ctk.CTk):
         app_path = Path(__file__).resolve()
         try:
             with _winreg.OpenKey(_winreg.HKEY_CURRENT_USER, key_path, 0,
-                                 _winreg.KEY_SET_VALUE) as k:
+                                  _winreg.KEY_SET_VALUE) as k:
                 if self._startup_var.get():
                     _winreg.SetValueEx(k, "avatar_voice", 0, _winreg.REG_SZ,
                                        f'"{pythonw}" "{app_path}" --autostart')
@@ -816,7 +935,7 @@ class App(ctk.CTk):
                     except OSError:
                         pass
         except OSError as e:
-            self._log_line(f"[startup] erro no registro: {e}")
+            self._log_line(f"[startup] registry error: {e}")
 
     def _on_close(self):
         if self._running:
@@ -828,7 +947,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "_pipeline":
         sys.argv.pop(1)
         if not getattr(sys, "frozen", False):
-            # Dev mode: add avatar_voice/ to path (frozen: PyInstaller already did it)
             _pkg = str(Path(__file__).parent)
             if _pkg not in sys.path:
                 sys.path.insert(0, _pkg)

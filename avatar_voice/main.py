@@ -283,14 +283,15 @@ def main() -> None:
     )
     parser.add_argument(
         "--provider", "-p",
-        choices=["ollama", "openai", "hermes", "openrouter"],
+        choices=["ollama", "openai", "hermes", "openrouter", "openclaw"],
         default=None,
         help=(
             "Provider do agente: "
             "ollama (local, padrão), "
             "openai (direto, requer OPENAI_API_KEY), "
             "hermes (localhost:8642, requer Hermes rodando), "
-            "openrouter (requer OPENROUTER_API_KEY)"
+            "openrouter (requer OPENROUTER_API_KEY), "
+            "openclaw (localhost:18789, requer OpenClaw rodando)"
         ),
     )
     parser.add_argument(
@@ -343,6 +344,11 @@ def main() -> None:
         cfg.agent.base_url = "https://openrouter.ai/api/v1"
         cfg.agent.api_key = os.environ.get("OPENROUTER_API_KEY", "")
         cfg.agent.timeout = 30
+    elif args.provider == "openclaw":
+        cfg.agent.base_url = os.environ.get("OPENCLAW_URL", "http://localhost:18789/v1")
+        cfg.agent.api_key = os.environ.get("OPENCLAW_API_KEY", "")
+        cfg.agent.model = "openclaw/default"
+        cfg.agent.timeout = 60
 
     # Sobrescrever modelo se passado explicitamente
     if args.model:
