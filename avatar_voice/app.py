@@ -282,6 +282,15 @@ class App(ctk.CTk):
         self._sys_prompt.pack(fill="x", pady=(0, 4))
         self._sys_prompt.insert("1.0", DEFAULT_SYSTEM)
 
+        self._send_sys_var = ctk.BooleanVar(value=False)
+        ctk.CTkCheckBox(s, text="Send system prompt to provider",
+                        variable=self._send_sys_var,
+                        font=FONT_SMALL, text_color=SUBTEXT,
+                        checkbox_width=18, checkbox_height=18,
+                        fg_color=BLUE, border_color=MUTED,
+                        checkmark_color="#1e1e2e"
+                        ).pack(anchor="w", pady=(2, 4))
+
         # -- Mascote (Ollama) --------------------------------------------------
         sm = self._card(scroll, "Mascote", "Ollama Modelfile builder")
         self._mascote_card = sm.master
@@ -478,8 +487,13 @@ class App(ctk.CTk):
 
         g_hdr = ctk.CTkFrame(left, fg_color="transparent")
         g_hdr.grid(row=0, column=0, sticky="ew", pady=(4, 2))
-        ctk.CTkLabel(g_hdr, text="Greetings", font=FONT_H2,
-                     text_color=MAUVE).pack(side="left")
+        self._greetings_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(g_hdr, text="Greetings", variable=self._greetings_var,
+                        font=FONT_H2, text_color=MAUVE,
+                        checkbox_width=18, checkbox_height=18,
+                        fg_color=MAUVE, border_color=MUTED,
+                        checkmark_color="#1e1e2e"
+                        ).pack(side="left")
         self._g_count = ctk.CTkLabel(g_hdr, text="0", font=FONT_SMALL,
                                       text_color=MUTED)
         self._g_count.pack(side="left", padx=(6, 0))
@@ -519,8 +533,13 @@ class App(ctk.CTk):
 
         w_hdr = ctk.CTkFrame(right, fg_color="transparent")
         w_hdr.grid(row=0, column=0, sticky="ew", pady=(4, 2))
-        ctk.CTkLabel(w_hdr, text="Waitings", font=FONT_H2,
-                     text_color=YELLOW).pack(side="left")
+        self._waitings_var = ctk.BooleanVar(value=True)
+        ctk.CTkCheckBox(w_hdr, text="Waitings", variable=self._waitings_var,
+                        font=FONT_H2, text_color=YELLOW,
+                        checkbox_width=18, checkbox_height=18,
+                        fg_color=YELLOW, border_color=MUTED,
+                        checkmark_color="#1e1e2e"
+                        ).pack(side="left")
         self._w_count = ctk.CTkLabel(w_hdr, text="0", font=FONT_SMALL,
                                       text_color=MUTED)
         self._w_count.pack(side="left", padx=(6, 0))
@@ -772,6 +791,9 @@ class App(ctk.CTk):
         saved_prompt = agent.get("system_prompt", "").strip()
         self._sys_prompt.delete("1.0", "end")
         self._sys_prompt.insert("1.0", saved_prompt or DEFAULT_SYSTEM)
+        self._send_sys_var.set(agent.get("send_system_prompt", False))
+        self._greetings_var.set(agent.get("greetings_enabled", True))
+        self._waitings_var.set(agent.get("waitings_enabled", True))
 
         self._whisper_cb.set(stt.get("model", "small"))
         self._set_entry(self._lang_e, stt.get("language", "pt"))
@@ -804,9 +826,12 @@ class App(ctk.CTk):
         key = self._apikey_e.get().strip()
 
         cfg["agent"].update({
-            "base_url":      url,
-            "model":         model,
-            "system_prompt": self._sys_prompt.get("1.0", "end").strip(),
+            "base_url":           url,
+            "model":              model,
+            "system_prompt":      self._sys_prompt.get("1.0", "end").strip(),
+            "send_system_prompt": self._send_sys_var.get(),
+            "greetings_enabled":  self._greetings_var.get(),
+            "waitings_enabled":   self._waitings_var.get(),
         })
         if key:
             cfg["agent"]["api_key"] = key

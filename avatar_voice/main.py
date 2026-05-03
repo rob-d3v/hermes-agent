@@ -100,6 +100,7 @@ def _build_components(cfg: Config, input_device: Optional[int]):
         history_reset_minutes=cfg.agent.history_reset_minutes,
         timeout=cfg.agent.timeout,
         system_prompt=cfg.agent.system_prompt,
+        send_system_prompt=cfg.agent.send_system_prompt,
     )
 
     return wake, tts, stt, agent
@@ -159,10 +160,13 @@ def run_pipeline(cfg: Config, input_device: Optional[int] = None) -> None:
 
         # ── GREETING ──────────────────────────────────────────────────
         elif state == State.GREETING:
-            greeting = random_greeting()
-            logger.info("[GREETING] %s", greeting)
-            dashboard.publish("tts", text=greeting)
-            tts.speak(greeting)
+            if cfg.agent.greetings_enabled:
+                greeting = random_greeting()
+                logger.info("[GREETING] %s", greeting)
+                dashboard.publish("tts", text=greeting)
+                tts.speak(greeting)
+            else:
+                logger.info("[GREETING] skipped (disabled)")
             state = _set_state(State.LISTENING)
 
         # ── LISTENING ─────────────────────────────────────────────────
@@ -203,10 +207,13 @@ def run_pipeline(cfg: Config, input_device: Optional[int] = None) -> None:
             # Aguarda brevemente — se LLM já respondeu, pula a mensagem de espera
             agent_thread.join(timeout=1.0)
             if agent_thread.is_alive():
-                waiting_msg = random_waiting()
-                logger.info("[WAITING] %s", waiting_msg)
-                dashboard.publish("tts", text=waiting_msg)
-                tts.speak(waiting_msg)
+                if cfg.agent.waitings_enabled:
+                    waiting_msg = random_waiting()
+                    logger.info("[WAITING] %s", waiting_msg)
+                    dashboard.publish("tts", text=waiting_msg)
+                    tts.speak(waiting_msg)
+                else:
+                    logger.info("[WAITING] waiting message skipped (disabled)")
                 # Aguarda o agent terminar (já estava processando enquanto TTS tocava)
                 agent_thread.join(timeout=cfg.agent.timeout + 5)
             else:

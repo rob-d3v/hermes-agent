@@ -28,6 +28,9 @@ class AgentConfig:
     history_reset_minutes: int = 10
     timeout: int = 240  # segundos — 240 para Ollama cold start, 30 para APIs cloud
     system_prompt: str = ""  # vazio = usa o default do agent_client
+    send_system_prompt: bool = False  # se True, envia system prompt ao provider
+    greetings_enabled: bool = True
+    waitings_enabled: bool = True
 
 
 @dataclass
@@ -137,6 +140,9 @@ def load_config(config_path: Optional[str] = None) -> Config:
         history_reset_minutes=int(a.get("history_reset_minutes", AgentConfig.history_reset_minutes)),
         timeout=int(a.get("timeout", AgentConfig.timeout)),
         system_prompt=a.get("system_prompt", ""),
+        send_system_prompt=bool(a.get("send_system_prompt", False)),
+        greetings_enabled=bool(a.get("greetings_enabled", True)),
+        waitings_enabled=bool(a.get("waitings_enabled", True)),
     )
 
     # --- wake_word ---
