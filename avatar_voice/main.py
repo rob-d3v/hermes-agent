@@ -283,15 +283,10 @@ def main() -> None:
     )
     parser.add_argument(
         "--provider", "-p",
-        choices=["ollama", "openai", "hermes", "openrouter", "openclaw"],
         default=None,
         help=(
-            "Provider do agente: "
-            "ollama (local, padrão), "
-            "openai (direto, requer OPENAI_API_KEY), "
-            "hermes (localhost:8642, requer Hermes rodando), "
-            "openrouter (requer OPENROUTER_API_KEY), "
-            "openclaw (localhost:18789, requer OpenClaw rodando)"
+            "Provider do agente (nome definido em config.yaml seção 'providers'). "
+            "Built-ins: ollama, openai, hermes, openrouter, openclaw, n8n"
         ),
     )
     parser.add_argument(
@@ -320,35 +315,36 @@ def main() -> None:
     _setup_logging(cfg.logging.level)
 
     # Aplicar preset de provider se passado na linha de comando
-    if args.provider == "ollama":
-        cfg.agent.base_url = "http://localhost:11434/v1"
-        cfg.agent.api_key = "ollama"
-        cfg.agent.model = "mascote"
-        cfg.agent.timeout = 240
-    elif args.provider == "openai":
-        cfg.agent.base_url = "https://api.openai.com/v1"
-        cfg.agent.api_key = os.environ.get("OPENAI_API_KEY", "")
-        cfg.agent.model = "gpt-4o-mini"
-        cfg.agent.timeout = 30
-        if not cfg.agent.api_key:
-            print("ERRO: OPENAI_API_KEY não definida. Configure com:")
-            print("  set OPENAI_API_KEY=sk-...   (Windows)")
-            print("  export OPENAI_API_KEY=sk-... (Linux/macOS)")
+    if args.provider:
+        # Lookup: config.yaml providers > built-in presets
+        import yaml as _yaml
+        _BUILTIN = {
+            "ollama":     {"model": "mascote",            "api_key": "ollama",                           "base_url": "http://localhost:11434/v1",      "timeout": 240},
+            "openai":     {"model": "gpt-4o-mini",        "api_key": "",                                 "base_url": "https://api.openai.com/v1",     "timeout": 30},
+            "hermes":     {"model": "hermes-agent",       "api_key": "aa6531e6c0db6b2fba53bb133fac2e0a", "base_url": "http://localhost:8642/v1",       "timeout": 60},
+            "openrouter": {"model": "openai/gpt-4o-mini", "api_key": "",                                 "base_url": "https://openrouter.ai/api/v1",  "timeout": 30},
+            "openclaw":   {"model": "openclaw/default",   "api_key": "",                                 "base_url": "http://localhost:18789/v1",      "timeout": 60},
+            "n8n":        {"model": "default",            "api_key": "",                                 "base_url": "http://localhost:5678/webhook/v1", "timeout": 30},
+        }
+        _cfg_path = Path(args.config) if args.config else Path(__file__).parent / "config.yaml"
+        _saved_provs = {}
+        if _cfg_path.exists():
+            with open(_cfg_path, "r", encoding="utf-8") as _f:
+                _saved_provs = (_yaml.safe_load(_f) or {}).get("providers", {})
+        _all = {**_BUILTIN, **_saved_provs}
+        p = _all.get(args.provider)
+        if p:
+            cfg.agent.base_url = p.get("base_url", cfg.agent.base_url)
+            cfg.agent.model = p.get("model", cfg.agent.model)
+            cfg.agent.timeout = int(p.get("timeout", cfg.agent.timeout))
+            key = p.get("api_key", "")
+            # Allow env var override: <PROVIDER_NAME>_API_KEY
+            env_key = os.environ.get(f"{args.provider.upper()}_API_KEY", "")
+            cfg.agent.api_key = env_key or key or cfg.agent.api_key
+        else:
+            print(f"ERRO: Provider '{args.provider}' não encontrado.")
+            print(f"Disponíveis: {', '.join(_all.keys())}")
             return
-    elif args.provider == "hermes":
-        cfg.agent.base_url = "http://localhost:8642/v1"
-        cfg.agent.api_key = os.environ.get("HERMES_API_KEY", "aa6531e6c0db6b2fba53bb133fac2e0a")
-        cfg.agent.model = "hermes-agent"
-        cfg.agent.timeout = 60
-    elif args.provider == "openrouter":
-        cfg.agent.base_url = "https://openrouter.ai/api/v1"
-        cfg.agent.api_key = os.environ.get("OPENROUTER_API_KEY", "")
-        cfg.agent.timeout = 30
-    elif args.provider == "openclaw":
-        cfg.agent.base_url = os.environ.get("OPENCLAW_URL", "http://localhost:18789/v1")
-        cfg.agent.api_key = os.environ.get("OPENCLAW_API_KEY", "")
-        cfg.agent.model = "openclaw/default"
-        cfg.agent.timeout = 60
 
     # Sobrescrever modelo se passado explicitamente
     if args.model:

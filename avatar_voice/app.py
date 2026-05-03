@@ -65,12 +65,13 @@ STATE_COLOR = {
     "STOPPED":    "#585b70",
 }
 
-PROVIDER_PRESETS = {
-    "ollama":     ("mascote",           "ollama",                           "http://localhost:11434/v1"),
-    "openai":     ("gpt-4o-mini",       "",                                 "https://api.openai.com/v1"),
-    "hermes":     ("hermes-agent",      "aa6531e6c0db6b2fba53bb133fac2e0a", "http://localhost:8642/v1"),
-    "openrouter": ("openai/gpt-4o-mini","",                                 "https://openrouter.ai/api/v1"),
-    "openclaw":   ("openclaw/default",  "",                                 "http://localhost:18789/v1"),
+BUILTIN_PROVIDERS = {
+    "ollama":     {"model": "mascote",            "api_key": "ollama",                           "base_url": "http://localhost:11434/v1",      "timeout": 240},
+    "openai":     {"model": "gpt-4o-mini",        "api_key": "",                                 "base_url": "https://api.openai.com/v1",     "timeout": 30},
+    "hermes":     {"model": "hermes-agent",       "api_key": "aa6531e6c0db6b2fba53bb133fac2e0a", "base_url": "http://localhost:8642/v1",       "timeout": 60},
+    "openrouter": {"model": "openai/gpt-4o-mini", "api_key": "",                                 "base_url": "https://openrouter.ai/api/v1",  "timeout": 30},
+    "openclaw":   {"model": "openclaw/default",   "api_key": "",                                 "base_url": "http://localhost:18789/v1",      "timeout": 60},
+    "n8n":        {"model": "default",            "api_key": "",                                 "base_url": "http://localhost:5678/webhook/v1", "timeout": 30},
 }
 
 def _app_dir() -> Path:
@@ -186,12 +187,13 @@ class App(ctk.CTk):
             border_width=0,
         )
         self._tabs.pack(fill="both", expand=True, padx=0, pady=0)
-        for name in ("Setup", "Monitor", "Chat"):
+        for name in ("Setup", "Phrases", "Monitor", "Chat"):
             self._tabs.add(name)
         # Style the tab buttons
         self._tabs._segmented_button.configure(font=FONT_H2)
 
         self._build_setup(self._tabs.tab("Setup"))
+        self._build_phrases(self._tabs.tab("Phrases"))
         self._build_monitor(self._tabs.tab("Monitor"))
         self._build_chat(self._tabs.tab("Chat"))
 
@@ -228,14 +230,32 @@ class App(ctk.CTk):
         # -- Provider ----------------------------------------------------------
         self._prov_var = ctk.StringVar(value="ollama")
         s = self._card(scroll, "Provider", "LLM backend")
-        self._prov_seg = ctk.CTkSegmentedButton(
-            s, values=["ollama", "openai", "hermes", "openrouter", "openclaw"],
-            variable=self._prov_var, font=FONT_BODY,
-            selected_color=BLUE, selected_hover_color="#7ba4f5",
-            unselected_color=OVERLAY, unselected_hover_color=MUTED,
-            fg_color=OVERLAY, command=self._on_provider,
+        prov_row = ctk.CTkFrame(s, fg_color="transparent")
+        prov_row.pack(fill="x", pady=(4, 10))
+        self._prov_menu = ctk.CTkOptionMenu(
+            prov_row, variable=self._prov_var,
+            values=self._provider_names(),
+            font=FONT_BODY, dropdown_font=FONT_BODY,
+            fg_color=OVERLAY, button_color=MUTED,
+            button_hover_color="#7ba4f5",
+            dropdown_fg_color=OVERLAY,
+            dropdown_hover_color=BLUE,
+            text_color=TEXT,
+            command=self._on_provider,
+            width=200,
         )
-        self._prov_seg.pack(fill="x", pady=(4, 10))
+        self._prov_menu.pack(side="left", padx=(0, 8))
+        ctk.CTkButton(
+            prov_row, text="+", width=36, height=32, corner_radius=8,
+            font=FONT_BODY, fg_color=OVERLAY, hover_color=GREEN,
+            text_color=TEXT, command=self._add_provider,
+        ).pack(side="left", padx=(0, 4))
+        self._del_btn = ctk.CTkButton(
+            prov_row, text="-", width=36, height=32, corner_radius=8,
+            font=FONT_BODY, fg_color=OVERLAY, hover_color=RED,
+            text_color=TEXT, command=self._remove_provider,
+        )
+        self._del_btn.pack(side="left")
 
         # Two-column row for model + api key
         cols = ctk.CTkFrame(s, fg_color="transparent")
@@ -429,6 +449,196 @@ class App(ctk.CTk):
             state="normal" if _WIN else "disabled",
         ).pack(anchor="w", pady=(4, 4))
 
+    # -- Phrases tab -----------------------------------------------------------
+    def _build_phrases(self, parent):
+        self._phrases_data = self._load_phrases_json()
+
+        top = ctk.CTkFrame(parent, fg_color="transparent")
+        top.pack(fill="x", padx=12, pady=(8, 0))
+        ctk.CTkLabel(top, text="Personalize as frases faladas pelo avatar",
+                     font=FONT_SMALL, text_color=SUBTEXT).pack(side="left")
+
+        self._phrases_save_btn = ctk.CTkButton(
+            top, text="Save Phrases", width=120, height=32, corner_radius=8,
+            font=("Segoe UI", 10, "bold"), fg_color=GREEN,
+            hover_color="#94d3a2", text_color="#1e1e2e",
+            command=self._save_phrases,
+        )
+        self._phrases_save_btn.pack(side="right")
+
+        cols = ctk.CTkFrame(parent, fg_color="transparent")
+        cols.pack(fill="both", expand=True, padx=8, pady=(4, 8))
+        cols.columnconfigure(0, weight=1)
+        cols.columnconfigure(1, weight=1)
+
+        # Greetings column
+        left = ctk.CTkFrame(cols, fg_color="transparent")
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
+        left.rowconfigure(1, weight=1)
+
+        g_hdr = ctk.CTkFrame(left, fg_color="transparent")
+        g_hdr.grid(row=0, column=0, sticky="ew", pady=(4, 2))
+        ctk.CTkLabel(g_hdr, text="Greetings", font=FONT_H2,
+                     text_color=MAUVE).pack(side="left")
+        self._g_count = ctk.CTkLabel(g_hdr, text="0", font=FONT_SMALL,
+                                      text_color=MUTED)
+        self._g_count.pack(side="left", padx=(6, 0))
+
+        g_list_frame = ctk.CTkFrame(left, fg_color=CARD_BG, corner_radius=10,
+                                     border_width=1, border_color=OVERLAY)
+        g_list_frame.grid(row=1, column=0, sticky="nsew")
+        g_list_frame.rowconfigure(0, weight=1)
+        g_list_frame.columnconfigure(0, weight=1)
+
+        self._g_list = ctk.CTkTextbox(
+            g_list_frame, font=FONT_MONO_SM, fg_color=CARD_BG,
+            text_color=TEXT, wrap="none", corner_radius=10)
+        self._g_list.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
+
+        g_btns = ctk.CTkFrame(left, fg_color="transparent")
+        g_btns.grid(row=2, column=0, sticky="ew", pady=(4, 0))
+        self._g_entry = ctk.CTkEntry(
+            g_btns, font=FONT_MONO_SM, height=30, corner_radius=8,
+            fg_color=OVERLAY, border_color=MUTED, text_color=TEXT,
+            placeholder_text="Nova frase de saudação...")
+        self._g_entry.pack(side="left", fill="x", expand=True, padx=(0, 4))
+        self._g_entry.bind("<Return>", lambda _: self._add_phrase("greetings"))
+        ctk.CTkButton(g_btns, text="+", width=32, height=30, corner_radius=8,
+                      font=FONT_BODY, fg_color=OVERLAY, hover_color=GREEN,
+                      text_color=TEXT,
+                      command=lambda: self._add_phrase("greetings")).pack(side="left", padx=(0, 2))
+        ctk.CTkButton(g_btns, text="-", width=32, height=30, corner_radius=8,
+                      font=FONT_BODY, fg_color=OVERLAY, hover_color=RED,
+                      text_color=TEXT,
+                      command=lambda: self._remove_phrase("greetings")).pack(side="left")
+
+        # Waitings column
+        right = ctk.CTkFrame(cols, fg_color="transparent")
+        right.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
+        right.rowconfigure(1, weight=1)
+
+        w_hdr = ctk.CTkFrame(right, fg_color="transparent")
+        w_hdr.grid(row=0, column=0, sticky="ew", pady=(4, 2))
+        ctk.CTkLabel(w_hdr, text="Waitings", font=FONT_H2,
+                     text_color=YELLOW).pack(side="left")
+        self._w_count = ctk.CTkLabel(w_hdr, text="0", font=FONT_SMALL,
+                                      text_color=MUTED)
+        self._w_count.pack(side="left", padx=(6, 0))
+
+        w_list_frame = ctk.CTkFrame(right, fg_color=CARD_BG, corner_radius=10,
+                                     border_width=1, border_color=OVERLAY)
+        w_list_frame.grid(row=1, column=0, sticky="nsew")
+        w_list_frame.rowconfigure(0, weight=1)
+        w_list_frame.columnconfigure(0, weight=1)
+
+        self._w_list = ctk.CTkTextbox(
+            w_list_frame, font=FONT_MONO_SM, fg_color=CARD_BG,
+            text_color=TEXT, wrap="none", corner_radius=10)
+        self._w_list.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
+
+        w_btns = ctk.CTkFrame(right, fg_color="transparent")
+        w_btns.grid(row=2, column=0, sticky="ew", pady=(4, 0))
+        self._w_entry = ctk.CTkEntry(
+            w_btns, font=FONT_MONO_SM, height=30, corner_radius=8,
+            fg_color=OVERLAY, border_color=MUTED, text_color=TEXT,
+            placeholder_text="Nova frase de espera...")
+        self._w_entry.pack(side="left", fill="x", expand=True, padx=(0, 4))
+        self._w_entry.bind("<Return>", lambda _: self._add_phrase("waitings"))
+        ctk.CTkButton(w_btns, text="+", width=32, height=30, corner_radius=8,
+                      font=FONT_BODY, fg_color=OVERLAY, hover_color=GREEN,
+                      text_color=TEXT,
+                      command=lambda: self._add_phrase("waitings")).pack(side="left", padx=(0, 2))
+        ctk.CTkButton(w_btns, text="-", width=32, height=30, corner_radius=8,
+                      font=FONT_BODY, fg_color=OVERLAY, hover_color=RED,
+                      text_color=TEXT,
+                      command=lambda: self._remove_phrase("waitings")).pack(side="left")
+
+        self._refresh_phrases_ui()
+
+    def _load_phrases_json(self) -> dict:
+        p = _app_dir() / "phrases.json"
+        if p.exists():
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return {
+                    "greetings": data.get("greetings", []),
+                    "waitings": data.get("waitings", []),
+                }
+            except Exception:
+                pass
+        return {"greetings": [], "waitings": []}
+
+    def _refresh_phrases_ui(self):
+        greetings = self._phrases_data.get("greetings", [])
+        waitings = self._phrases_data.get("waitings", [])
+
+        self._g_list.delete("1.0", "end")
+        for phrase in greetings:
+            self._g_list.insert("end", phrase + "\n")
+        self._g_count.configure(text=f"({len(greetings)})")
+
+        self._w_list.delete("1.0", "end")
+        for phrase in waitings:
+            self._w_list.insert("end", phrase + "\n")
+        self._w_count.configure(text=f"({len(waitings)})")
+
+    def _parse_textbox(self, textbox) -> list:
+        raw = textbox.get("1.0", "end").strip()
+        return [line.strip() for line in raw.splitlines() if line.strip()]
+
+    def _add_phrase(self, category: str):
+        entry = self._g_entry if category == "greetings" else self._w_entry
+        textbox = self._g_list if category == "greetings" else self._w_list
+        text = entry.get().strip()
+        if not text:
+            return
+        # Sync edits from textbox before adding
+        self._phrases_data[category] = self._parse_textbox(textbox)
+        if text in self._phrases_data[category]:
+            self._log_line(f"Frase já existe em {category}.", color=YELLOW)
+            return
+        self._phrases_data[category].append(text)
+        entry.delete(0, "end")
+        self._refresh_phrases_ui()
+
+    def _remove_phrase(self, category: str):
+        textbox = self._g_list if category == "greetings" else self._w_list
+        # Sync edits from textbox
+        self._phrases_data[category] = self._parse_textbox(textbox)
+        lst = self._phrases_data[category]
+        if not lst:
+            return
+
+        # Try to find selected line by cursor position
+        try:
+            cursor = textbox.index("insert")
+            line_num = int(cursor.split(".")[0]) - 1
+            if 0 <= line_num < len(lst):
+                removed = lst.pop(line_num)
+                self._log_line(f"Removida: {removed[:50]}")
+                self._refresh_phrases_ui()
+                return
+        except Exception:
+            pass
+
+        removed = lst.pop()
+        self._log_line(f"Removida (última): {removed[:50]}")
+        self._refresh_phrases_ui()
+
+    def _save_phrases(self):
+        from phrases import save_phrases
+        # Parse current textbox content (user may have edited inline)
+        greetings = self._parse_textbox(self._g_list)
+        waitings = self._parse_textbox(self._w_list)
+        self._phrases_data = {"greetings": greetings, "waitings": waitings}
+        save_phrases(greetings, waitings)
+        self._refresh_phrases_ui()
+        self._log_line(f"Phrases saved ({len(greetings)} greetings, {len(waitings)} waitings)")
+        self._phrases_save_btn.configure(text="Saved!", fg_color="#2d5a27", text_color=GREEN)
+        self.after(1500, lambda: self._phrases_save_btn.configure(
+            text="Save Phrases", fg_color=GREEN, text_color="#1e1e2e"))
+
     # -- Monitor tab -----------------------------------------------------------
     def _build_monitor(self, parent):
         self._log = ctk.CTkTextbox(
@@ -547,11 +757,14 @@ class App(ctk.CTk):
         ww    = cfg.get("wake_word", {})
 
         url = agent.get("base_url", "http://localhost:11434/v1")
-        prov = ("openai" if "openai.com" in url else
-                "hermes" if "8642" in url else
-                "openrouter" if "openrouter" in url else
-                "openclaw" if "18789" in url else "ollama")
+        # Find which provider matches the saved url+model
+        prov = "ollama"
+        for name, p in self._get_providers().items():
+            if p.get("base_url") == url:
+                prov = name
+                break
         self._prov_var.set(prov)
+        self._refresh_provider_menu()
 
         self._set_entry(self._model_e,  agent.get("model",   "mascote"))
         self._set_entry(self._apikey_e, agent.get("api_key", ""))
@@ -586,14 +799,25 @@ class App(ctk.CTk):
         for sec in ("agent", "stt", "tts", "wake_word", "audio"):
             cfg.setdefault(sec, {})
 
+        url = self._url_e.get().strip()
+        model = self._model_e.get().strip()
+        key = self._apikey_e.get().strip()
+
         cfg["agent"].update({
-            "base_url":      self._url_e.get().strip(),
-            "model":         self._model_e.get().strip(),
+            "base_url":      url,
+            "model":         model,
             "system_prompt": self._sys_prompt.get("1.0", "end").strip(),
         })
-        key = self._apikey_e.get().strip()
         if key:
             cfg["agent"]["api_key"] = key
+
+        # Persist current provider fields into providers dict
+        prov_name = self._prov_var.get()
+        cfg.setdefault("providers", {})
+        cfg["providers"][prov_name] = {
+            "model": model, "api_key": key, "base_url": url,
+            "timeout": self._get_providers().get(prov_name, {}).get("timeout", 30),
+        }
 
         cfg["stt"].update({
             "model":    self._whisper_cb.get(),
@@ -635,16 +859,63 @@ class App(ctk.CTk):
         self.after(1500, lambda: self._save_btn.configure(
             text="Save", fg_color=OVERLAY, text_color=TEXT))
 
+    def _get_providers(self) -> dict:
+        """Merge built-in presets with user-saved providers (user wins)."""
+        saved = self._cfg.get("providers", {}) or {}
+        merged = {**BUILTIN_PROVIDERS, **saved}
+        return merged
+
+    def _provider_names(self) -> list:
+        return list(self._get_providers().keys())
+
+    def _refresh_provider_menu(self):
+        names = self._provider_names()
+        self._prov_menu.configure(values=names)
+        if self._prov_var.get() not in names and names:
+            self._prov_var.set(names[0])
+
     def _on_provider(self, value: str):
-        model, key, url = PROVIDER_PRESETS.get(value, ("", "", ""))
-        self._set_entry(self._model_e, model)
-        self._set_entry(self._url_e, url)
+        p = self._get_providers().get(value, {})
+        self._set_entry(self._model_e, p.get("model", ""))
+        self._set_entry(self._url_e, p.get("base_url", ""))
+        key = p.get("api_key", "")
         if key:
             self._set_entry(self._apikey_e, key)
         else:
             self._apikey_e.delete(0, "end")
-        self._update_prov_label(value, model)
+        self._update_prov_label(value, p.get("model", ""))
         self._toggle_mascote_card(value == "ollama")
+
+    def _add_provider(self):
+        dialog = ctk.CTkInputDialog(
+            text="Nome do novo provider:", title="Add Provider",
+        )
+        name = (dialog.get_input() or "").strip().lower()
+        if not name:
+            return
+        if name in self._get_providers():
+            self._log_line(f"Provider '{name}' already exists.", color=YELLOW)
+            return
+        self._cfg.setdefault("providers", {})[name] = {
+            "model": "", "api_key": "", "base_url": "http://localhost:8080/v1", "timeout": 30,
+        }
+        self._refresh_provider_menu()
+        self._prov_var.set(name)
+        self._on_provider(name)
+        self._log_line(f"Provider '{name}' added. Fill in the fields and Save.")
+
+    def _remove_provider(self):
+        name = self._prov_var.get()
+        saved = self._cfg.get("providers", {})
+        if name in saved:
+            del saved[name]
+            self._refresh_provider_menu()
+            self._on_provider(self._prov_var.get())
+            self._log_line(f"Provider '{name}' removed.")
+        elif name in BUILTIN_PROVIDERS:
+            self._log_line(f"Cannot remove built-in provider '{name}'.", color=YELLOW)
+        else:
+            self._log_line(f"Provider '{name}' not found.", color=RED)
 
     def _toggle_mascote_card(self, show: bool):
         if show:
@@ -674,17 +945,11 @@ class App(ctk.CTk):
 
     def _start(self):
         if getattr(sys, "frozen", False):
-            cmd = [sys.executable, "_pipeline",
-                   "--provider", self._prov_var.get(),
-                   "--port", "3005"]
+            cmd = [sys.executable, "_pipeline", "--port", "3005"]
         else:
             cmd = [sys.executable,
                    str(Path(__file__).parent / "main.py"),
-                   "--provider", self._prov_var.get(),
                    "--port", "3005"]
-        model = self._model_e.get().strip()
-        if model:
-            cmd += ["--model", model]
 
         try:
             self._proc = subprocess.Popen(

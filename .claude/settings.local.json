@@ -56,7 +56,8 @@
       "Bash(powershell -Command \"Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Host 'Done'\")",
       "Bash(git ls-remote:*)",
       "Bash(git -C \"E:/backup_2026/Repositórios/openclaw\" log --oneline -3)",
-      "Bash(find /e/backup_2026/Repositórios/openclaw -type f \\\\\\(-name *.ts -o -name *.js \\\\\\) -path */server/* -o -path */api/* -o -path */gateway/*)"
+      "Bash(find /e/backup_2026/Repositórios/openclaw -type f \\\\\\(-name *.ts -o -name *.js \\\\\\) -path */server/* -o -path */api/* -o -path */gateway/*)",
+      "Bash(python -c \"import py_compile; py_compile.compile\\(''main.py'', doraise=True\\); py_compile.compile\\(''app.py'', doraise=True\\); py_compile.compile\\(''config.py'', doraise=True\\); print\\(''OK''\\)\")"
     ]
   }
 }

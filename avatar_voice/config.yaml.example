@@ -45,3 +45,14 @@ audio:
 logging:
   level: "INFO"                            # DEBUG | INFO | WARNING
   show_scores: false                       # exibe score da wake word no log (DEBUG)
+
+# === Providers personalizados ===
+# Adicione quantos quiser. Cada um é um backend OpenAI-compatible.
+# Na GUI, use os botões + e - para gerenciar. Na CLI: --provider <nome>
+# Env var override: <NOME_MAIÚSCULO>_API_KEY (ex: MEUBOT_API_KEY)
+# providers:
+#   meubot:
+#     model: "meu-modelo"
+#     api_key: ""
+#     base_url: "http://meu-server:8080/v1"
+#     timeout: 30
