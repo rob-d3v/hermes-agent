@@ -1,0 +1,58 @@
+otimo.
+olha, eu ja tenho modelo .onnx piper
+esta na pasta piper_models é o nanda_ptbr.onnx
+
+Quero q vc deixe rodando pra mim o piper então, faça o serviço q for necessario, de forma q seja facil e intuitiva para eu poder distribuir para outros usuarios q usam ollama tb, ou outro agent
+daí mesma coisa pro whisper..coloque e pra rodar em pt-br
+
+pra melhrorar ainda mais, add mais 1 serviço openwakeword.
+
+quero os rodando junto, integrado com o ollama.
+siga o fluxo:
+
+1 - eu chamo a wake word usando open wakeword com o modelo que deixei em wake_word_models que é o morph.onnx
+faça 1 servicin pra ficar escutando meu mic default ou outro a desejar.
+https://github.com/dscripka/openWakeWord
+então aqui para o processamento da wake word até o fluxo precisar.
+
+2 - então deve rolar aqui 1 greetings bonita com tts usando piper..
+(deve ter 1 greeting randomizada, gere umas 20)
+https://github.com/rhasspy/piper
+
+3 - entao..aqui vai ser liberado o whisper, para eu poder falar..assim q eu terminar de falar, 
+deve ser enviado ao ollama a pergunta ou fala... pra ele processar.
+https://github.com/openai/whisper
+
+4 - deve rolar outro tts aqui, com uma waiting (randomizado numa lista de 20 possiveis) e cancelar o whisper, ja q eu ja falei
+
+5 - chega a resposta do ollama e deve ser usado piper tts novamente.
+
+6 - então..aqui libera o whisper novamente...e se eu n falar nada dentro de 5 segndos, pode voltar pro fluxo 1, liberando a wake word e cancelando whisper.
+
+e o fluxo deve ser mais ou menos esse..em loop infinito.
+
+depois tb seria interessante eu add uns triggers pra rolar o ollama de outras formas..
+sei la, ainda n pensei em nada.
+
+obs: piper deve ser configuravel a velocidad da voz, o pitch
+whisper deve ser configuravel tb, n sei oq.
+
+se puder deixe tudo facil de eu poder distribuir isso..pq o segredo da coisa, é q eu tenho 1 outra aplicaçao aqui, externa
+q vai estar monitorando a saida de audio, com 1 avatarzin sincronizando com o piper. (vc n precisava saber disso mas..talvez te inspire no final a criar 1 doc linda e facil de distribuir)
+
+pq meu objeitvo é vender avatares, e tb distribuir de graça alguns.
+
+Na real, eu meio q ja montei 1 ssitema desse....é só se inspirar, e trazer.
+Mas quero q crie do zero, um novo, mais organizado saca e q roda aqui no windows, e pra linux tb.
+se quiser bisolhar ta nesse path:  /e/backup_2026/Repositórios/wake_word_trainer
+
+Mas dai...tem q respeitar todas particularidades novas agora.
+
+Nãoe squece no final de gerar a doc passo a passo bonitinha pra outros usuarios, dai deopis eu acrescento a parte de avatar.
+
+
+---
+
+pra fiacr mais perfeito ainda...crie 1 interfacezinha moderna de inicialização setup desse sistema, podendo configurar tudo la. Inclusive, poder          
+  redefinir alguma coisa. Q ja faz o start, configura whisper, tts, wakeword, modelo llm, se hermes ou ollama, etc. Faça ela pequena compacta moderna.. pra  
+  rodar aqui em desktop e qnd finalizar faça tb o chajt, ao invez de aparecer na pagina, aparecer nessa interface tb. No final att a documentação e teste.

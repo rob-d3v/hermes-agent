@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rtk git:*)",
+      "Bash(docker compose:*)",
+      "Bash(rtk read:*)",
+      "Bash(rtk docker:*)",
+      "Bash(cd:*)",
+      "Bash(xargs file:*)",
+      "Bash(rtk grep:*)",
+      "Bash(xargs sed:*)",
+      "WebFetch(domain:coolify.io)"
+    ]
+  }
+}
