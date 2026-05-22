@@ -9,7 +9,9 @@
       "Bash(xargs file:*)",
       "Bash(rtk grep:*)",
       "Bash(xargs sed:*)",
-      "WebFetch(domain:coolify.io)"
+      "WebFetch(domain:coolify.io)",
+      "Bash(xxd)",
+      "Bash(python3:*)"
     ]
   }
 }

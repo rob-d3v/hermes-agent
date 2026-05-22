@@ -27,16 +27,16 @@ services:
     image: hermes-agent
     container_name: hermes
     restart: unless-stopped
-    network_mode: host
+    ports:
+      - "8642:8642"
     volumes:
       - ~/.hermes:/opt/data
     environment:
       - HERMES_UID=${HERMES_UID:-10000}
       - HERMES_GID=${HERMES_GID:-10000}
-      # To expose the OpenAI-compatible API server beyond localhost,
-      # uncomment BOTH lines (API_SERVER_KEY is mandatory for auth):
-      # - API_SERVER_HOST=0.0.0.0
-      # - API_SERVER_KEY=${API_SERVER_KEY}
+      - API_SERVER_ENABLED=true
+      - API_SERVER_HOST=0.0.0.0
+      - API_SERVER_KEY=aa6531e6c0db6b2fba53bb133fac2e0a
       # Microsoft Teams — uncomment and fill in to enable Teams gateway.
       # Register your bot at https://dev.botframework.com/ to get these values.
       # - TEAMS_CLIENT_ID=${TEAMS_CLIENT_ID}
@@ -59,7 +59,8 @@ services:
     image: hermes-agent
     container_name: hermes-dashboard
     restart: unless-stopped
-    network_mode: host
+    ports:
+      - "9119:9119"
     depends_on:
       - gateway
     volumes:
@@ -68,4 +69,4 @@ services:
       - HERMES_UID=${HERMES_UID:-10000}
       - HERMES_GID=${HERMES_GID:-10000}
     # Localhost-only. For remote access, tunnel via `ssh -L 9119:localhost:9119`.
-    command: ["dashboard", "--host", "127.0.0.1", "--no-open"]
+    command: ["dashboard", "--host", "0.0.0.0", "--no-open"]
