@@ -1,0 +1,63 @@
+#
+# docker-compose-vps.yml — Hermes Agent on VPS / Coolify
+#
+# Deploy via Coolify > New Resource > Docker Compose > paste this file.
+#
+# Required env vars (set in Coolify Environment tab):
+#   API_SERVER_KEY    — secret key for the OpenAI-compatible API (mandatory)
+#   HERMES_UID        — (optional, default 10000)
+#   HERMES_GID        — (optional, default 10000)
+#
+# Coolify assigns domains automatically via SERVICE_FQDN_ magic vars:
+#   SERVICE_FQDN_GATEWAY_8642   — gateway API domain  (e.g. hermes-api.yourdomain.com)
+#   SERVICE_FQDN_DASHBOARD_9119 — dashboard domain    (e.g. hermes.yourdomain.com)
+#
+# After first start, run initial setup inside the container:
+#   docker exec -it hermes hermes setup
+#
+# Security notes:
+#   - API_SERVER_KEY protects the OpenAI-compatible endpoint — do NOT leave it empty.
+#   - Dashboard stores API keys; protect it with Coolify's built-in HTTP Basic Auth
+#     (Resource > Settings > Auth) before exposing to the internet.
+#
+services:
+  gateway:
+    build: .
+    image: hermes-agent
+    container_name: hermes
+    restart: unless-stopped
+    volumes:
+      - hermes-data:/opt/data
+    environment:
+      - HERMES_UID=${HERMES_UID:-10000}
+      - HERMES_GID=${HERMES_GID:-10000}
+      - API_SERVER_HOST=0.0.0.0
+      - API_SERVER_KEY=${API_SERVER_KEY:?API_SERVER_KEY is required — set it in Coolify Environment tab}
+      - SERVICE_FQDN_GATEWAY_8642
+      # Messaging gateways (uncomment + fill in Coolify env vars to enable):
+      # - TEAMS_CLIENT_ID=${TEAMS_CLIENT_ID}
+      # - TEAMS_CLIENT_SECRET=${TEAMS_CLIENT_SECRET}
+      # - TEAMS_TENANT_ID=${TEAMS_TENANT_ID}
+      # - TEAMS_ALLOWED_USERS=${TEAMS_ALLOWED_USERS}
+      # - GOOGLE_CHAT_PROJECT_ID=${GOOGLE_CHAT_PROJECT_ID}
+      # - GOOGLE_CHAT_SUBSCRIPTION_NAME=${GOOGLE_CHAT_SUBSCRIPTION_NAME}
+      # - GOOGLE_CHAT_SERVICE_ACCOUNT_JSON=${GOOGLE_CHAT_SERVICE_ACCOUNT_JSON}
+      # - GOOGLE_CHAT_ALLOWED_USERS=${GOOGLE_CHAT_ALLOWED_USERS}
+    command: ["gateway", "run"]
+
+  dashboard:
+    image: hermes-agent
+    container_name: hermes-dashboard
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    volumes:
+      - hermes-data:/opt/data
+    environment:
+      - HERMES_UID=${HERMES_UID:-10000}
+      - HERMES_GID=${HERMES_GID:-10000}
+      - SERVICE_FQDN_DASHBOARD_9119
+    command: ["dashboard", "--host", "0.0.0.0", "--no-open"]
+
+volumes:
+  hermes-data:
