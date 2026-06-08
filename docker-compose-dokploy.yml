@@ -58,7 +58,11 @@ services:
     environment:
       - HERMES_UID=${HERMES_UID:-10000}
       - HERMES_GID=${HERMES_GID:-10000}
-    command: ["dashboard", "--host", "0.0.0.0", "--no-open"]
+    # --insecure required: the dashboard refuses to bind 0.0.0.0 without it.
+    # Safe here only because it is reachable solely via Traefik (TLS) on the
+    # internal dokploy-network. STRONGLY recommended: add HTTP Basic Auth
+    # middleware on hermes.aniamodels.shop in Dokploy before real use.
+    command: ["dashboard", "--host", "0.0.0.0", "--no-open", "--insecure"]
     networks:
       - dokploy-network
     labels:
