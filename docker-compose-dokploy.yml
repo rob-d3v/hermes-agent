@@ -72,6 +72,11 @@ services:
       - traefik.http.routers.hermes-dash.entrypoints=websecure
       - traefik.http.routers.hermes-dash.tls.certresolver=letsencrypt
       - traefik.http.services.hermes-dash.loadbalancer.server.port=9119
+      # HTTP Basic Auth — dashboard stores API keys, must not be public.
+      # User/pass are in oracle-vps/.secrets/hermes_dash_{user,pass}. The value
+      # below is an apr1 htpasswd hash ($ doubled for compose interpolation).
+      - traefik.http.routers.hermes-dash.middlewares=hermes-dash-auth
+      - traefik.http.middlewares.hermes-dash-auth.basicauth.users=admin:$$apr1$$jmQMxpdH$$SQBHZtReEInOOIW7.TpmX.
 
 networks:
   dokploy-network:
