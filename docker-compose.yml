@@ -17,9 +17,11 @@
 #   - If you override entrypoint, keep /opt/hermes/docker/entrypoint.sh in
 #     the command chain. It drops root to the hermes user before gateway
 #     files such as gateway.lock are created.
-#   - The gateway's API server is off unless you uncomment API_SERVER_KEY
-#     and API_SERVER_HOST. See docs/user-guide/api-server.md before doing
-#     this on an internet-facing host.
+#   - The gateway's API server is enabled below and protected by
+#     API_SERVER_KEY, which you MUST supply via the environment (e.g. in a
+#     .env file): API_SERVER_KEY=$(openssl rand -hex 32). Never commit the
+#     key. See docs/user-guide/api-server.md before exposing on an
+#     internet-facing host.
 #
 services:
   gateway:
@@ -36,7 +38,7 @@ services:
       - HERMES_GID=${HERMES_GID:-10000}
       - API_SERVER_ENABLED=true
       - API_SERVER_HOST=0.0.0.0
-      - API_SERVER_KEY=aa6531e6c0db6b2fba53bb133fac2e0a
+      - API_SERVER_KEY=${API_SERVER_KEY:?set API_SERVER_KEY (e.g. openssl rand -hex 32) in your .env}
       # Microsoft Teams — uncomment and fill in to enable Teams gateway.
       # Register your bot at https://dev.botframework.com/ to get these values.
       # - TEAMS_CLIENT_ID=${TEAMS_CLIENT_ID}

@@ -322,6 +322,10 @@ Authorization: Bearer ***
 
 Configure the key via `API_SERVER_KEY` env var. If you need a browser to call Hermes directly, also set `API_SERVER_CORS_ORIGINS` to an explicit allowlist.
 
+:::danger Compromised key — rotate
+The key `aa6531e6c0db6b2fba53bb133fac2e0a` was once hardcoded in `docker-compose.yml` and committed to git history (commit `11873cab3`). Removing it from the current file does **not** remove it from history — treat that value as public and compromised. If you ever deployed with it, generate and switch to a new key now (`openssl rand -hex 32`) and never reuse the old one. Always supply `API_SERVER_KEY` from the environment / `.env`, never inline in a committed file.
+:::
+
 :::warning Security
 The API server gives full access to hermes-agent's toolset, **including terminal commands**. When binding to a non-loopback address like `0.0.0.0`, `API_SERVER_KEY` is **required**. Also keep `API_SERVER_CORS_ORIGINS` narrow to control browser access.
 
