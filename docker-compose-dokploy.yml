@@ -76,7 +76,7 @@ services:
       # User/pass are in oracle-vps/.secrets/hermes_dash_{user,pass}. The value
       # below is an apr1 htpasswd hash ($ doubled for compose interpolation).
       - traefik.http.routers.hermes-dash.middlewares=hermes-dash-auth
-      - traefik.http.middlewares.hermes-dash-auth.basicauth.users=admin:$$apr1$$jmQMxpdH$$SQBHZtReEInOOIW7.TpmX.
+      - traefik.http.middlewares.hermes-dash-auth.basicauth.users=admin:$$apr1$$aTBpiZNL$$KPvOg6Zpwz7bGO4W9v4bE/
 
 networks:
   dokploy-network:
