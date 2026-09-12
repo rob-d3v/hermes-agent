@@ -1,0 +1,95 @@
+#
+# docker-compose-dokploy.yml — Hermes Agent on Dokploy (Traefik + dokploy-network)
+#
+# Deploy: Dokploy > Project > Create Service > Compose
+#   - Provider: Git  →  repo rob-d3v/hermes-agent, branch main
+#   - Compose Path: docker-compose-dokploy.yml
+#
+# This is the Dokploy port of docker-compose-vps.yml. The Coolify-only
+# SERVICE_FQDN_* magic vars are gone; routing is done with Traefik labels.
+#
+# Required env vars (set in Dokploy > Service > Environment):
+#   API_SERVER_KEY       openssl rand -hex 32   (protects OpenAI-compatible API)
+#   HERMES_API_DOMAIN    e.g. hermes-api.aniamodels.shop   (gateway / API)
+#   HERMES_DASH_DOMAIN   e.g. hermes.aniamodels.shop       (dashboard)
+#   HERMES_UID           optional, default 10000
+#   HERMES_GID           optional, default 10000
+#
+# DNS: point both domains (A records) to the VPS IP before deploy.
+#
+# Security:
+#   - The dashboard stores API keys. After deploy, protect HERMES_DASH_DOMAIN
+#     with Dokploy's HTTP Basic Auth middleware (Service > Advanced) before use.
+#   - Run first-time setup inside the container: `docker exec -it hermes hermes setup`
+#
+services:
+  gateway:
+    build: .
+    image: hermes-agent
+    container_name: hermes
+    restart: unless-stopped
+    volumes:
+      - hermes-data:/opt/data
+    environment:
+      - HERMES_UID=${HERMES_UID:-10000}
+      - HERMES_GID=${HERMES_GID:-10000}
+      - API_SERVER_ENABLED=true
+      - API_SERVER_HOST=0.0.0.0
+      - API_SERVER_KEY=${API_SERVER_KEY:?set API_SERVER_KEY in Dokploy env}
+    command: ["gateway", "run"]
+    networks:
+      - dokploy-network
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.hermes-gw.rule=Host(`${HERMES_API_DOMAIN}`)
+      - traefik.http.routers.hermes-gw.entrypoints=websecure
+      - traefik.http.routers.hermes-gw.tls.certresolver=letsencrypt
+      - traefik.http.services.hermes-gw.loadbalancer.server.port=8642
+
+  dashboard:
+    image: hermes-agent
+    container_name: hermes-dashboard
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    volumes:
+      - hermes-data:/opt/data
+    environment:
+      - HERMES_UID=${HERMES_UID:-10000}
+      - HERMES_GID=${HERMES_GID:-10000}
+    # Auth is enforced by the dashboard itself, not by this file. Since v0.21.2
+    # it refuses to bind a non-loopback address unless an auth provider is
+    # registered, and `--insecure` no longer waives that. The provider lives in
+    # the data volume, never in this repo:
+    #
+    #   /opt/data/config.yaml
+    #     dashboard:
+    #       basic_auth:
+    #         username: admin
+    #         password_hash: scrypt$...   # plugins.dashboard_auth.basic.hash_password
+    #
+    # Remove that block and the container exits at start and Traefik answers 502.
+    # Verified 2026-09-12 with Traefik bypassed: `/` → 302 /login, /api/* → 401.
+    command: ["dashboard", "--host", "0.0.0.0", "--no-open", "--insecure"]
+    networks:
+      - dokploy-network
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.hermes-dash.rule=Host(`${HERMES_DASH_DOMAIN}`)
+      - traefik.http.routers.hermes-dash.entrypoints=websecure
+      - traefik.http.routers.hermes-dash.tls.certresolver=letsencrypt
+      - traefik.http.services.hermes-dash.loadbalancer.server.port=9119
+      # No basicauth middleware here on purpose. This repo is pushed to the
+      # PUBLIC fork rob-d3v/hermes-agent, and an apr1 hash of a live credential
+      # used to sit on this line. The dashboard's own auth gate replaces it, and
+      # its hash stays in the private data volume. Credentials for it are in
+      # oracle-vps/.secrets/hermes_dash_{user,pass} — never inline them here.
+
+networks:
+  dokploy-network:
+    external: true
+
+volumes:
+  hermes-data:
